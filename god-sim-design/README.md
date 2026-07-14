@@ -8,7 +8,7 @@
 
 ## Design pillars
 
-1. **The world reacts to everything.** Every intervention cascades through ecology, economy, culture, and faith. Nothing is a one-off effect.
+1. **The world reacts to everything — and needs nothing.** The simulation is fully autonomous: cultures, wars, religions, and history unfold with zero divine input, and every run diverges into its own unrecognizable history. Your interventions perturb a living system; they don't power it.
 2. **History is the reward.** No victory screen. The payoff is a 4,000-year chronicle of cultures, wars, prophets, and legends that your actions shaped — readable, scrubbable, exportable.
 3. **You are how they see you.** The game never asks you to pick "good or evil." Mortals *interpret* your deeds, and their interpretation — worship, fear, doubt, rival gods — is the core system.
 4. **Chill, creative, shareable.** No fail states, no timers. A game you garden, screenshot, stream, and tell stories about.

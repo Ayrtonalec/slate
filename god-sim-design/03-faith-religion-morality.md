@@ -28,6 +28,7 @@ Every divine act carries tags (domain: storm/harvest/war/death/sea/craft…; ten
 - Rituals and holidays spawn from specific chronicle events — the anniversary of the day you drowned the invaders becomes a festival *or* a day of dread depending on who's remembering.
 - Different cultures can worship the *same* god (you) as *different* gods without knowing it — and can fight wars over interpretations of you. Their theological confusion is chronicled.
 - Prophets periodically "canonize" recent interpretation into doctrine. Doctrine lags your behavior — act against canon and you generate Doubt *and* drama (see schisms).
+- **Corollary: a god with no deeds has no religion.** At Year 0 you are unknown in your own creation. Mortals invent gods on their own (sun cults, ancestor spirits, river worship) — so your first competitors for belief are faiths you never inspired, and your first miracle lands in a world that already has theology to argue with it.
 
 This is the "world feels alive / they react to who you actually are" requirement made mechanical. It's also endlessly streamable: the game keeps showing you *what they think of you*, and it keeps being a funhouse mirror.
 

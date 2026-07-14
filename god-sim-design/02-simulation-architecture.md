@@ -38,6 +38,21 @@ Every sim mutation is an immutable, structured event in an append-only log ("The
 
 Design rule: **the sim emits facts; interpretation is layered on top** (see doc 03 — cultures remember events *wrongly*, and that divergence is stored separately from the facts).
 
+## Autonomy & divergence — two hard guarantees
+
+**Guarantee 1: the world needs no god.** The sim is fully self-driving. A zero-input run from Year 0 produces a complete history — cultures form, wars break out, dynasties rise, religions emerge (to gods mortals *invent*: sun cults, ancestor spirits — not to you; see the Interpretation corollary in doc 03). The god is a perturbation on a living system, never its engine. This isn't aspiration, it's enforced by architecture: the CI integration runs are god-less by definition, so an autonomous world is literally the thing we test every day. It also falls out as a free feature — **Observer Mode**, the pure ant-farm run, which some players (and streams) will treat as the whole game.
+
+**Guarantee 2: runs diverge — by engineering, not by hope.** Emergent sims converge to sameness by default (the "every WorldBox endgame looks alike" problem; naive randomness gives different numbers, not different *stories*). Unrecognizably-different runs are a designed property:
+
+- **Geography is destiny:** map-gen variance propagates through site scoring into everything downstream — where the first river valley is settled reshapes 4,000 years.
+- **Early symmetry breaking:** small initial differences are allowed to compound, never damped toward a "balanced" middle.
+- **Multiple historical attractors:** the systems must support genuinely different *shapes* of history — a hegemonic thousand-year empire; a permanently fractured world of feuding city-states; a theocratic age; a post-plague dark age; monster-checked wilds where civilization never consolidates. Different attractors, not different parameter values.
+- **Fork points:** pivotal Figures and rare high-impact events (a conqueror's early death, a prophet's improbable survival) genuinely branch history.
+- **Cultural drift:** similar geography still grows different societies, because values vectors wander.
+- **The player** — the biggest chaos agent of all, but explicitly not a required one.
+- **Tuning rule:** prune *degenerate* sameness (extinction by Year 300, one-blob-conquers-all, gray eternal stalemate) without sandpapering off the interesting extremes. The goal is a wide distribution of *legible* histories.
+- **Measured, not vibed:** CI runs a battery of seeds and asserts *spread* on history metrics (civ counts, war frequency, religion counts, era pacing, largest-empire share). If a tuning change collapses the distribution — runs getting samey — that's a failing test, same as a crash.
+
 ## Systems inventory (macro layer)
 
 - **Climate & weather:** latitude bands, rain shadow, ocean currents (coarse), plus divine overrides (cursed/blessed zones). Multi-year droughts create migrations and faith spikes.
