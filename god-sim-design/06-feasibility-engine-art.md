@@ -26,7 +26,7 @@ Calibration from the real world: Manor Lords ≈ 7 years, one (exceptional) dev 
 
 ## Engine
 
-**Recommendation: engine-agnostic simulation core + UE5 presentation layer** — with Unity as the sane alternative if iteration speed ends up mattering more than the visual ceiling.
+**Recommendation: engine-agnostic simulation core + Unity presentation layer.** *(Updated 2026-07-14: the founder clarified that maximizing AI-copilot leverage is a primary criterion, not a tiebreaker — that flips the earlier UE5 lean to Unity as the production default, with UE5 as the fallback if the visual bar demonstrably can't be hit in HDRP.)*
 
 **The non-negotiable part is the first half.** The macro sim (the actual game) should be a headless, deterministic, engine-free library (C# or C++/Rust) with its own test suite that can integrate 4,000-year histories in CI. The engine renders and edits; it never owns truth. This de-risks the engine choice itself (a pivot stays affordable), enables the chronicle/multiplayer/scrubbing features, and means the sim can be built and *proven fun* before a single expensive asset exists.
 
@@ -41,9 +41,9 @@ Calibration from the real world: Manor Lords ≈ 7 years, one (exceptional) dev 
 | AI-copilot leverage (honest note) | I'm strongest in plain code — the C++ sim/module work suits me; editor-GUI-heavy and Blueprint-heavy workflows dilute my usefulness (UE's Python editor scripting recovers some of it) | Strong — C# end-to-end, and scenes/prefabs are text (YAML), so I can operate on more of the project directly | Strong — everything is text; best prototype partner |
 | Cost | 5% royalty > $1M rev | Per-seat (Runtime-fee fiasco was walked back, but it happened — mild trust tax) | Free/MIT |
 
-**Why UE5 gets the nod for production:** this game's marketing moat is *the shot* — a Manor Lords-beautiful world that you built playing god. UE5 + its scan/human asset ecosystem is the shortest credible path to that shot for a team without a large art department, and our god-game input model (sparse commands, no twitch gameplay) sidesteps most of UE's iteration pain. The sim core stays engine-free, so if UE friction proves worse than predicted at vertical-slice time, the pivot to Unity is measured in weeks, not a rewrite.
+**Why Unity gets the nod for production:** one C# codebase from sim core to UI means the AI copilot can write the large majority of the project end-to-end — sim, gameplay, DOTS crowd rendering, shaders, and crucially *editor tooling and scene/prefab generation scripts*, so "clicking in the editor" is largely replaced by "running a tool the copilot wrote." A shipped game at ~85% of the visual ceiling beats an unshipped one at 100%, and our distance-first art direction (lighting and atmosphere carry the look; close-up faces are rare by design) shrinks UE5's fidelity advantage exactly where it's biggest.
 
-**Why you'd pick Unity instead:** if, after the prototype, we value one-language velocity (C# sim + C# game + an AI copilot that can touch everything) over the last 20% of visual ceiling. Genuinely defensible; decide at the end of Phase 1 with the prototype in hand, not now.
+**When you'd pick UE5 instead:** if at vertical-slice time the Settlement-zoom beauty shot demonstrably can't hit the bar in HDRP, *and* the founder is willing to personally drive UE's editor-centric workflows (Blueprints, binary .uassets, MetaHuman) where copilot coverage drops substantially — much of a UE project lives in binary assets an AI can't read or write, so the human's share of manual work grows. The engine-free sim core keeps that pivot measured in weeks, not a rewrite. Decide at the end of Phase 1 with the prototype in hand.
 
 **Prototype phase needs no engine decision at all:** headless C# sim + a cheap visualization (Godot, or even a web/three.js map viewer) proves the fun. **Do not spend art or engine effort before the sim is fun to watch.**
 
