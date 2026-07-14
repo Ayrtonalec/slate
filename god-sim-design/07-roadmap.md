@@ -49,7 +49,8 @@ Tech dial uncapped, industrial → 2026 presets, cities, media-era rumor dynamic
 
 ## Immediate next actions
 
-1. ~~Capture the braindump and design bible~~ ← this commit.
-2. Decide: greenlight Phase 0? (Sim core language default: C#. Cheap-viz default: web-based living map.)
-3. If greenlit: scaffold the sim repo (solution layout, tick loop, seeded RNG streams, event log, CI with a 500-year integration test) — first pairing session.
-4. Parallel slow-burn: collect visual reference (Manor Lords, medieval cartography, illustrated atlases) into a `reference/` moodboard; start the working-title shortlist conversation.
+1. ~~Capture the braindump and design bible~~ ✓
+2. ~~Greenlight Phase 0~~ ✓ (founder: "doe die fase 0, maar doe wel meteen assets" — hence the illustrated-atlas presentation from day one)
+3. ~~Build Phase 0~~ ✓ — see [`../god-sim-prototype/`](../god-sim-prototype/README.md): deterministic sim core + the Living Atlas in one self-contained HTML file. Headless tests cover autonomy, determinism, divergence, and all three power cascades. *Stack note: prototype sim is JavaScript so it runs anywhere with zero installs; it is the executable spec for the C# core at the Phase 1 gate.*
+4. **Now: play it.** The Phase 0 success criterion is a feel test — watch 500 years, poke it, and decide what the loop is missing. Candidate next steps: prayer/faith v0.1, named Figures, wars, or straight to Phase 1 slice planning.
+5. Parallel slow-burn: collect visual reference (Manor Lords, medieval cartography, illustrated atlases) into a `reference/` moodboard; start the working-title shortlist conversation.

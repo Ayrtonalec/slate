@@ -28,7 +28,8 @@
 
 ## Status
 
-- **2026-07-14** — v0 design bible drafted from the initial braindump. No code yet. Next decision: greenlight the Phase 0 headless simulation prototype (see [07-roadmap.md](07-roadmap.md)).
+- **2026-07-14** — v0 design bible drafted from the initial braindump.
+- **2026-07-14** — Phase 0 "Proof of Life" built and playable: [`../god-sim-prototype/`](../god-sim-prototype/README.md) — a deterministic, fully autonomous world sim rendered as a living illustrated atlas (single HTML file, zero install), with the founder-note powers (seed gold / curse weather / bless land), emergent dragons and wyrmslayers, and a Markdown-exportable chronicle. Next: the feel test (see [07-roadmap.md](07-roadmap.md)).
 
 ## Working title candidates
 

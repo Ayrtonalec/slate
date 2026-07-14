@@ -1,0 +1,3329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SLATE — The Living Atlas</title>
+<style>
+/* SLATE Phase 0 — atlas chrome. One committed visual world: aged
+   parchment, walnut ink, gilded accents. The UI is the margin of the
+   plate, not a dashboard. */
+
+:root {
+  --paper: #e8dcc0;
+  --paper-hi: #f2ead6;
+  --paper-panel: rgba(240, 231, 207, 0.94);
+  --ink: #3a2f1e;
+  --ink-faded: #6e5f42;
+  --hairline: rgba(58, 47, 30, 0.35);
+  --gold: #b08a2e;
+  --gold-bright: #d4aa3c;
+  --blood: #8a3b2a;
+  --serif: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--serif);
+  color: var(--ink);
+  background: var(--paper);
+  overflow: hidden;
+}
+#app { position: fixed; inset: 0; }
+#map { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#map:active { cursor: grabbing; }
+
+button { font-family: var(--serif); color: var(--ink); }
+:focus-visible { outline: 2px dashed var(--gold); outline-offset: 2px; }
+
+/* ---------- panels share the plate-margin look ---------- */
+.panelish {
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline), 0 2px 10px rgba(58, 47, 30, 0.18);
+}
+
+/* ---------- top bar ---------- */
+#topbar {
+  position: absolute; top: 0; left: 0; right: 0;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 12px 16px; gap: 12px;
+  pointer-events: none;
+  z-index: 5;
+}
+#topbar > * { pointer-events: auto; }
+.cartouche {
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline);
+  padding: 7px 16px 8px;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.cartouche h1 {
+  font-size: 19px; font-weight: 600;
+  letter-spacing: 0.28em; text-transform: uppercase;
+}
+.cartouche .sub { font-size: 11.5px; font-style: italic; color: var(--ink-faded); white-space: nowrap; }
+#date {
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline);
+  padding: 7px 18px 8px;
+  text-align: center; min-width: 170px;
+}
+#date-year { font-size: 17px; font-weight: 600; display: block; font-variant-numeric: tabular-nums; }
+#date-season { font-size: 10.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faded); }
+#timectl {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline);
+  padding: 6px 10px;
+}
+.ctl {
+  background: var(--paper-hi);
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  padding: 4px 9px;
+  font-size: 12.5px;
+  line-height: 1;
+}
+.ctl:hover { background: #fff7e0; }
+.ctl.icon { width: 30px; height: 28px; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+.ctl.icon svg { width: 17px; height: 17px; }
+.ctl.text { letter-spacing: 0.08em; }
+.speeds { display: inline-flex; }
+.speeds .speed { border-right-width: 0; min-width: 30px; height: 28px; font-weight: 600; }
+.speeds .speed:last-child { border-right-width: 1px; }
+.speed.active { background: var(--gold-bright); }
+#btn-pause { min-width: 34px; }
+
+/* ---------- powers rail ---------- */
+#powers {
+  position: absolute; left: 14px; top: 50%;
+  transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 12px;
+  z-index: 5;
+}
+.seal {
+  width: 58px; height: 58px;
+  border-radius: 50%;
+  border: 1.5px solid var(--ink);
+  background: var(--paper-panel);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline), 0 2px 8px rgba(58,47,30,0.22);
+  cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px;
+  transition: transform 0.12s ease;
+}
+.seal:hover { transform: scale(1.06); }
+.seal svg { width: 22px; height: 22px; }
+.seal-label { font-size: 7.5px; letter-spacing: 0.14em; text-transform: uppercase; }
+.seal.active {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--gold), 0 0 0 3px rgba(176,138,46,0.35), 0 2px 8px rgba(58,47,30,0.22);
+}
+
+/* ---------- chronicle ledger ---------- */
+#chronicle {
+  position: absolute; top: 74px; right: 0; bottom: 0;
+  width: 330px;
+  display: flex; flex-direction: column;
+  background: var(--paper-panel);
+  border-left: 1px solid var(--ink);
+  box-shadow: inset 3px 0 0 var(--paper-panel), inset 4px 0 0 var(--hairline);
+  z-index: 4;
+  transition: transform 0.25s ease;
+}
+#chronicle.collapsed { transform: translateX(296px); }
+#chronicle.collapsed #btn-chron-toggle { transform: rotate(180deg); }
+#chronicle header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px 9px;
+  border-bottom: 1px solid var(--hairline);
+}
+#chronicle h2 {
+  font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  flex: 1;
+}
+#chron-filter {
+  font-family: var(--serif); font-size: 11.5px;
+  background: var(--paper-hi); color: var(--ink);
+  border: 1px solid var(--ink); padding: 2px 4px;
+}
+#btn-chron-toggle { font-size: 15px; transition: transform 0.25s ease; }
+#chron-entries {
+  list-style: none;
+  overflow-y: auto; overflow-x: hidden;
+  flex: 1;
+  padding: 6px 0 20px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-faded) transparent;
+}
+#chron-entries li {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border-bottom: 1px solid rgba(58, 47, 30, 0.14);
+  cursor: pointer;
+}
+#chron-entries li:hover { background: rgba(176, 138, 46, 0.10); }
+#chron-entries .yr {
+  text-align: right;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--ink-faded);
+  font-variant-numeric: tabular-nums;
+  padding-top: 1px;
+}
+#chron-entries p { font-size: 12.5px; line-height: 1.42; }
+#chron-entries .tone-god { border-left: 3px solid var(--gold); }
+#chron-entries .tone-god .yr, #chron-entries .tone-god p { color: #7c5f1c; }
+#chron-entries .tone-doom { border-left: 3px solid var(--blood); }
+#chron-entries .tone-doom p { color: #6d2f22; }
+#chron-entries[data-min="2"] li[data-imp="1"] { display: none; }
+#chron-entries[data-min="3"] li[data-imp="1"],
+#chron-entries[data-min="3"] li[data-imp="2"] { display: none; }
+
+/* ---------- legend ---------- */
+#legend {
+  position: absolute; left: 14px; bottom: 14px;
+  width: 190px;
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline);
+  z-index: 5;
+  font-size: 12px;
+}
+#legend summary {
+  cursor: pointer;
+  padding: 7px 12px;
+  font-size: 10.5px; letter-spacing: 0.26em; text-transform: uppercase;
+  user-select: none;
+}
+#legend-body { padding: 2px 12px 6px; }
+.legend-row { display: flex; align-items: center; gap: 9px; padding: 2.5px 0; }
+.legend-row span { color: var(--ink); font-size: 12px; }
+#legend .hint {
+  padding: 7px 12px 9px;
+  border-top: 1px solid var(--hairline);
+  font-size: 10.5px; font-style: italic; color: var(--ink-faded);
+  line-height: 1.45;
+}
+
+/* ---------- tooltip & toast ---------- */
+#tooltip {
+  position: fixed; z-index: 9;
+  max-width: 240px;
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: 0 3px 12px rgba(58,47,30,0.3);
+  padding: 8px 11px 9px;
+  pointer-events: none;
+}
+#tooltip h3 { font-size: 13.5px; font-weight: 600; margin-bottom: 2px; }
+#tooltip p { font-size: 11.5px; color: var(--ink-faded); line-height: 1.4; }
+#tooltip em.f-gold { color: #7c5f1c; font-style: normal; font-weight: 600; }
+#tooltip em.f-doom { color: var(--blood); font-style: normal; font-weight: 600; }
+#tooltip em.f-god { color: var(--gold); font-style: normal; font-weight: 600; }
+#toast {
+  position: fixed; top: 84px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  box-shadow: inset 0 0 0 3px var(--paper-panel), inset 0 0 0 4px var(--hairline), 0 3px 12px rgba(58,47,30,0.3);
+  padding: 9px 18px;
+  font-size: 13px; font-style: italic;
+}
+#toast.tone-doom { color: var(--blood); }
+#ffwd {
+  position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+  z-index: 10;
+  background: var(--paper-panel);
+  border: 1px solid var(--ink);
+  padding: 8px 16px;
+  font-size: 13px; font-style: italic;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- intro ---------- */
+#intro {
+  position: fixed; inset: 0; z-index: 20;
+  background: rgba(46, 37, 22, 0.5);
+  display: grid; place-items: center;
+  padding: 18px;
+}
+#intro .card {
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  box-shadow: inset 0 0 0 5px var(--paper), inset 0 0 0 6.5px var(--hairline), 0 14px 50px rgba(20, 14, 4, 0.5);
+  max-width: 460px;
+  padding: 30px 34px 28px;
+  text-align: center;
+}
+#intro .over { font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-faded); margin-bottom: 12px; }
+#intro h1 { font-size: 40px; letter-spacing: 0.3em; text-transform: uppercase; font-weight: 600; }
+#intro .tag { font-style: italic; color: var(--ink-faded); margin: 2px 0 16px; }
+#intro p { font-size: 13.5px; line-height: 1.55; margin-bottom: 10px; text-wrap: balance; }
+#intro .row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 14px; }
+#intro .seedrow label { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faded); }
+#intro input {
+  font-family: var(--serif); font-size: 14px;
+  width: 90px; text-align: center;
+  background: var(--paper-hi); color: var(--ink);
+  border: 1px solid var(--ink); padding: 4px 6px;
+}
+.big {
+  border: 1.5px solid var(--ink);
+  background: var(--paper-hi);
+  padding: 9px 22px;
+  font-size: 13.5px; letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.big:hover { background: #fff7e0; }
+.big.primary { background: var(--gold-bright); font-weight: 600; }
+.big.primary:hover { background: #e3bb4e; }
+
+/* ---------- small screens ---------- */
+@media (max-width: 880px) {
+  .cartouche .sub { display: none; }
+  #date { min-width: 120px; padding: 7px 10px 8px; }
+  #chronicle { width: 300px; }
+  #chronicle.collapsed { transform: translateX(266px); }
+  #legend { width: 170px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="map"></canvas>
+</div>
+<script>
+/* SLATE Phase 0 — deterministic seeded RNG streams.
+   Every system pulls from its own labeled stream so systems can be
+   added/removed without reshuffling everyone else's randomness. */
+(function (S) {
+  'use strict';
+
+  function hashStr(s) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function makeRng(seed, label) {
+    const fn = mulberry32(hashStr(String(seed) + '/' + label));
+    return {
+      next: fn,
+      range: (a, b) => a + fn() * (b - a),
+      int: (a, b) => a + Math.floor(fn() * (b - a + 1)),
+      chance: (p) => fn() < p,
+      pick: (arr) => arr[Math.floor(fn() * arr.length)],
+      shuffle: (arr) => {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+          const j = Math.floor(fn() * (i + 1));
+          [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+      },
+    };
+  }
+
+  // Stateless position hash in [0,1) — for per-cell visual jitter.
+  function hash2(x, y, seed) {
+    let n = Math.imul(x, 374761393) ^ Math.imul(y, 668265263) ^ (seed | 0);
+    n = Math.imul(n ^ (n >>> 13), 1274126177);
+    return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+  }
+
+  S.rng = { makeRng, hashStr, mulberry32, hash2 };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — procedural naming: cultures, places, people, regions.
+   Four founding cultures, each with its own phoneme flavor so the map
+   reads as a world with distinct peoples, and separated colonies drift
+   apart in sound. */
+(function (S) {
+  'use strict';
+
+  S.CULTURES = [
+    {
+      id: 0, name: 'Aldish', color: '#55663B', demonym: 'the Aldish',
+      starts: ['Ash', 'Thorn', 'Wex', 'Bram', 'Hart', 'Elm', 'Grim', 'Wether', 'Ryd', 'Col', 'Marl', 'Oat', 'Fenn', 'Bar'],
+      ends: ['ford', 'stead', 'hollow', 'wick', 'bury', 'combe', 'field', 'mere', 'don', 'leigh', 'thorpe', 'bridge'],
+      goldEnds: ['delve', 'hollow', 'wick', 'ford'],
+      people: ['Osric', 'Aldwyn', 'Berta', 'Cedd', 'Godgifu', 'Hild', 'Leof', 'Wulfa', 'Eda', 'Sigred', 'Oswin', 'Merewen'],
+    },
+    {
+      id: 1, name: 'Vasker', color: '#4A6274', demonym: 'the Vasker',
+      starts: ['Skjal', 'Hrafn', 'Ulf', 'Gren', 'Kald', 'Bjor', 'Stein', 'Varg', 'Eld', 'Snor', 'Hval', 'Jarn'],
+      ends: ['vik', 'heim', 'fjall', 'strand', 'nes', 'dal', 'holm', 'gard', 'foss', 'havn'],
+      goldEnds: ['gruva', 'delv', 'heim', 'gard'],
+      people: ['Ragna', 'Torvald', 'Sigrun', 'Eirik', 'Halla', 'Bjarke', 'Yrsa', 'Knut', 'Solveig', 'Orm', 'Astrid', 'Geir'],
+    },
+    {
+      id: 2, name: 'Serai', color: '#A2652F', demonym: 'the Serai',
+      starts: ['Al-Qas', 'Zafir', 'Mira', 'Sahl', 'Dar', 'Kal', 'Azar', 'Nur', 'Rasha', 'Tal', 'Zeyd', 'Har'],
+      ends: ['ir', 'aba', 'oun', 'esh', 'ara', 'im', 'at', 'ez', 'ula', 'an'],
+      goldEnds: ['-dhahab', 'ara', 'ir', 'esh'],
+      people: ['Zahra', 'Idris', 'Layl', 'Basim', 'Naima', 'Tariq', 'Suheir', 'Omar', 'Yasmin', 'Khalid', 'Farah', 'Nadim'],
+    },
+    {
+      id: 3, name: 'Tessian', color: '#6E4A5E', demonym: 'the Tessians',
+      starts: ['Val', 'Cor', 'Aur', 'Sept', 'Mar', 'Luc', 'Tarr', 'Vin', 'Cael', 'Ost', 'Pell', 'Riv'],
+      ends: ['ium', 'ora', 'essa', 'anum', 'ola', 'is', 'urnum', 'atia', 'ento', 'aris'],
+      goldEnds: ['aurum', 'ora', 'ium'],
+      people: ['Livia', 'Cassian', 'Aurel', 'Petra', 'Marcus', 'Octavia', 'Loran', 'Vitus', 'Sabina', 'Tullo', 'Camilla', 'Renz'],
+    },
+  ];
+
+  const REGION_ADJ = ['Gray', 'Amber', 'Ashen', 'Whispering', 'Sundered', 'Elder', 'Silent', 'Golden', 'Thorn',
+    'Mist', 'Winter', 'Red', 'Hollow', 'Storm', 'Far', 'Sleeping', 'Broken', 'Pale', 'Iron', 'Weeping'];
+  const RANGE_END = ['Peaks', 'Spine', 'Crowns', 'Reach', 'Teeth', 'Fells', 'Wall'];
+  const FOREST_END = ['Weald', 'Wood', 'Deepwood', 'Tangle', 'Wilds'];
+  const SEA_END = ['Deep', 'Main', 'Expanse', 'Mirror', 'Gulf'];
+  const DESERT_END = ['Waste', 'Sands', 'Reach'];
+  const DRAGON_NAMES = ['Vharax', 'Skorn', 'Ymmeth', 'Cauldrax', 'Nyr', 'Vellumbra', 'Oroth', 'Kazmyre', 'Sarquel', 'Draumr'];
+
+  function makeNamer(seed) {
+    const rng = S.rng.makeRng(seed, 'names');
+    const used = new Set();
+
+    function unique(make) {
+      for (let i = 0; i < 40; i++) {
+        const n = make();
+        if (!used.has(n)) { used.add(n); return n; }
+      }
+      // Give up on uniqueness gracefully rather than looping forever.
+      const n = make() + ' ' + rng.int(2, 9);
+      used.add(n);
+      return n;
+    }
+
+    function joinName(a, b) {
+      if (b.startsWith('-')) return a + b.slice(1);
+      // Avoid awkward duplicate letters at the seam ("Thornnes" → "Thornes").
+      if (a[a.length - 1] === b[0]) return a + b.slice(1);
+      return a + b;
+    }
+
+    return {
+      place(cultureId) {
+        const c = S.CULTURES[cultureId];
+        return unique(() => joinName(rng.pick(c.starts), rng.pick(c.ends)));
+      },
+      goldPlace(cultureId) {
+        const c = S.CULTURES[cultureId];
+        return unique(() => {
+          if (rng.chance(0.5)) return joinName('Gold', rng.pick(c.goldEnds));
+          return joinName(rng.pick(c.starts), rng.pick(c.goldEnds));
+        });
+      },
+      person(cultureId) {
+        return rng.pick(S.CULTURES[cultureId].people);
+      },
+      region(kind) {
+        const adj = () => rng.pick(REGION_ADJ);
+        return unique(() => {
+          switch (kind) {
+            case 'range': return 'The ' + adj() + ' ' + rng.pick(RANGE_END);
+            case 'forest': return rng.chance(0.5) ? 'The ' + adj() + ' ' + rng.pick(FOREST_END) : adj() + rng.pick(['wood', 'weald']).toLowerCase();
+            case 'sea': return 'The ' + adj() + ' ' + rng.pick(SEA_END);
+            case 'ocean': return 'The ' + rng.pick(['Endless', 'Outer', 'Sunless', 'Wide']) + ' ' + rng.pick(['Ocean', 'Main']);
+            case 'desert': return 'The ' + adj() + ' ' + rng.pick(DESERT_END);
+            default: return 'The ' + adj() + ' Land';
+          }
+        });
+      },
+      dragon() {
+        return rng.pick(DRAGON_NAMES);
+      },
+    };
+  }
+
+  S.names = { makeNamer };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — deterministic world generation.
+   Produces the geography a run lives on: continents, climate, biomes,
+   rivers, fertility, resources, and named regions (ranges, forests,
+   seas). Same seed → same world, always. */
+(function (S) {
+  'use strict';
+
+  S.B = { OCEAN: 0, SHALLOW: 1, PLAINS: 2, FOREST: 3, HILLS: 4, MOUNTAIN: 5, DESERT: 6, SNOW: 7, MARSH: 8 };
+  const B = S.B;
+
+  const W = 192, H = 120;
+
+  function valueNoise(seed) {
+    function rnd(ix, iy) {
+      let n = Math.imul(ix, 127413) ^ Math.imul(iy, 335545) ^ (seed | 0);
+      n = Math.imul(n ^ (n >>> 13), 1274126177);
+      return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+    }
+    const smooth = (t) => t * t * (3 - 2 * t);
+    return function (x, y) {
+      const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+      const a = rnd(ix, iy), b = rnd(ix + 1, iy), c = rnd(ix, iy + 1), d = rnd(ix + 1, iy + 1);
+      const u = smooth(fx), v = smooth(fy);
+      return a * (1 - u) * (1 - v) + b * u * (1 - v) + c * (1 - u) * v + d * u * v;
+    };
+  }
+
+  function fbm(noise, oct, lac, gain) {
+    return (x, y) => {
+      let s = 0, a = 1, f = 1, norm = 0;
+      for (let i = 0; i < oct; i++) { s += a * noise(x * f, y * f); norm += a; a *= gain; f *= lac; }
+      return s / norm;
+    };
+  }
+
+  function generate(seed) {
+    const hseed = S.rng.hashStr(String(seed));
+    const nBase = fbm(valueNoise(hseed ^ 0x1111), 5, 2.0, 0.5);
+    const nWarp = fbm(valueNoise(hseed ^ 0x2222), 4, 2.0, 0.5);
+    const nRidge = fbm(valueNoise(hseed ^ 0x3333), 4, 2.1, 0.5);
+    const nMoist = fbm(valueNoise(hseed ^ 0x4444), 4, 2.0, 0.5);
+    const nJit = valueNoise(hseed ^ 0x5555);
+    const rng = S.rng.makeRng(seed, 'worldgen');
+    const namer = S.names.makeNamer(seed);
+
+    const N = W * H;
+    const height = new Float32Array(N);
+    const temp = new Float32Array(N);
+    const moist = new Float32Array(N);
+    const fertBase = new Float32Array(N);
+    const fert = new Float32Array(N);
+    const biome = new Uint8Array(N);
+    const river = new Uint8Array(N);
+    const resource = new Uint8Array(N);
+    const seaDist = new Uint8Array(N);   // land: distance to nearest water (capped)
+    const landDist = new Uint8Array(N);  // water: distance to nearest land (capped)
+    const regionOf = new Int16Array(N).fill(-1);
+    const idx = (x, y) => y * W + x;
+
+    // --- Height field: warped fBm + ridged component, ocean frame at map edges.
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const u = x / W * 7, v = y / H * 4.4;
+        const wx = u + (nWarp(u * 0.9 + 40, v * 0.9) - 0.5) * 1.6;
+        const wy = v + (nWarp(u * 0.9, v * 0.9 + 40) - 0.5) * 1.6;
+        let h = nBase(wx, wy) * 0.72;
+        const r = nRidge(u * 1.15 + 9, v * 1.15 + 9);
+        const ridge = Math.pow(1 - Math.abs(2 * r - 1), 2.2);
+        h += ridge * 0.34;
+        const ex = Math.min(x, W - 1 - x) / 14, ey = Math.min(y, H - 1 - y) / 12;
+        const edge = Math.min(1, Math.min(ex, ey));
+        h *= 0.35 + 0.65 * (edge < 1 ? edge * edge * (3 - 2 * edge) : 1);
+        height[idx(x, y)] = h;
+      }
+    }
+
+    // --- Sea level: binary search to a fixed land fraction (keeps every seed usable).
+    const LAND_TARGET = 0.36;
+    let lo = 0.1, hi = 0.9, sea = 0.5;
+    for (let it = 0; it < 22; it++) {
+      sea = (lo + hi) / 2;
+      let land = 0;
+      for (let i = 0; i < N; i++) if (height[i] > sea) land++;
+      if (land / N > LAND_TARGET) lo = sea; else hi = sea;
+    }
+    const isWater = (i) => height[i] <= sea;
+
+    // --- Distance fields (BFS), for climate, shallows and depth shading.
+    {
+      const q = [];
+      seaDist.fill(255); landDist.fill(255);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        if (isWater(i)) {
+          let coast = false;
+          if (x > 0 && !isWater(i - 1)) coast = true;
+          if (x < W - 1 && !isWater(i + 1)) coast = true;
+          if (y > 0 && !isWater(i - W)) coast = true;
+          if (y < H - 1 && !isWater(i + W)) coast = true;
+          landDist[i] = coast ? 1 : 255;
+          if (coast) q.push(i);
+        } else {
+          let shore = false;
+          if (x > 0 && isWater(i - 1)) shore = true;
+          if (x < W - 1 && isWater(i + 1)) shore = true;
+          if (y > 0 && isWater(i - W)) shore = true;
+          if (y < H - 1 && isWater(i + W)) shore = true;
+          seaDist[i] = shore ? 1 : 255;
+          if (shore) q.push(i);
+        }
+      }
+      let head = 0;
+      while (head < q.length) {
+        const i = q[head++];
+        const x = i % W, y = (i / W) | 0;
+        const field = isWater(i) ? landDist : seaDist;
+        const d = field[i];
+        if (d >= 30) continue;
+        const push = (j) => {
+          if (isWater(j) !== isWater(i)) return;
+          const f = isWater(j) ? landDist : seaDist;
+          if (f[j] > d + 1) { f[j] = d + 1; q.push(j); }
+        };
+        if (x > 0) push(i - 1);
+        if (x < W - 1) push(i + 1);
+        if (y > 0) push(i - W);
+        if (y < H - 1) push(i + W);
+      }
+    }
+
+    // --- Climate.
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        const lat = Math.abs(y / H - 0.5) * 2; // 0 equator .. 1 poles
+        temp[i] = Math.max(0, Math.min(1,
+          1 - lat * 1.05 - Math.max(0, height[i] - sea) * 1.1 + (nJit(x * 0.3, y * 0.3) - 0.5) * 0.14));
+        const coastal = Math.max(0, 1 - Math.min(seaDist[i], 30) / 26);
+        moist[i] = Math.max(0, Math.min(1, nMoist(x / W * 5 + 3, y / H * 3 + 3) * 0.78 + coastal * 0.3));
+      }
+    }
+
+    // --- Rivers: springs in high wet ground, descend to the sea.
+    const riverPaths = [];
+    {
+      const springs = [];
+      for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+        const i = idx(x, y);
+        if (!isWater(i) && height[i] > sea + 0.16 && moist[i] > 0.42) springs.push([x, y, height[i]]);
+      }
+      springs.sort((a, b) => b[2] - a[2]);
+      const chosen = [];
+      for (const s of springs) {
+        if (chosen.length >= 30) break;
+        if (chosen.every((c) => (c[0] - s[0]) ** 2 + (c[1] - s[1]) ** 2 >= 49)) chosen.push(s);
+      }
+      for (const [sx, sy] of chosen) {
+        let x = sx, y = sy;
+        const pts = [[x, y]];
+        const visited = new Set([idx(x, y)]);
+        let merged = false;
+        for (let step = 0; step < 500; step++) {
+          let bx = -1, by = -1, bh = Infinity;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+            if (!dx && !dy) continue;
+            const nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            const j = idx(nx, ny);
+            if (visited.has(j)) continue;
+            const hh = height[j] + (S.rng.hash2(nx, ny, hseed) - 0.5) * 0.02;
+            if (hh < bh) { bh = hh; bx = nx; by = ny; }
+          }
+          if (bx < 0 || bh > height[idx(x, y)] + 0.015) break; // stuck in a pit
+          x = bx; y = by;
+          const j = idx(x, y);
+          pts.push([x, y]);
+          if (isWater(j)) break;
+          if (river[j]) { river[j] = Math.min(3, river[j] + 1); merged = true; break; }
+          visited.add(j);
+        }
+        if (pts.length >= 7) {
+          for (const [px, py] of pts) {
+            const j = idx(px, py);
+            if (!isWater(j)) river[j] = Math.max(river[j], 1);
+          }
+          riverPaths.push({ pts, flow: merged ? 2 : 1 });
+        }
+      }
+    }
+
+    // --- Biomes.
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        if (isWater(i)) { biome[i] = landDist[i] <= 2 ? B.SHALLOW : B.OCEAN; continue; }
+        const h = height[i], t = temp[i], m = moist[i];
+        if (h > sea + 0.30) biome[i] = B.MOUNTAIN;
+        else if (t < 0.18) biome[i] = B.SNOW;
+        else if (h > sea + 0.20) biome[i] = B.HILLS;
+        else if (t > 0.72 && m < 0.34) biome[i] = B.DESERT;
+        else if (m > 0.78 && h < sea + 0.08 && t > 0.3) biome[i] = B.MARSH;
+        else if (m > 0.5 && t > 0.26) biome[i] = B.FOREST;
+        else biome[i] = B.PLAINS;
+      }
+    }
+
+    // --- Fertility & natural resources.
+    const FERT_BY_BIOME = { [B.PLAINS]: 0.75, [B.FOREST]: 0.55, [B.HILLS]: 0.42, [B.MARSH]: 0.5, [B.DESERT]: 0.07, [B.SNOW]: 0.05, [B.MOUNTAIN]: 0.1 };
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        if (isWater(i)) { fertBase[i] = 0; continue; }
+        let f = FERT_BY_BIOME[biome[i]] || 0.3;
+        let nearRiver = river[i] > 0;
+        if (!nearRiver) {
+          if (x > 0 && river[i - 1]) nearRiver = true;
+          else if (x < W - 1 && river[i + 1]) nearRiver = true;
+          else if (y > 0 && river[i - W]) nearRiver = true;
+          else if (y < H - 1 && river[i + W]) nearRiver = true;
+        }
+        if (nearRiver) f += 0.28;
+        f += (S.rng.hash2(x, y, hseed ^ 0x77) - 0.5) * 0.14;
+        fertBase[i] = Math.max(0, Math.min(1.2, f));
+        if (seaDist[i] === 1 && biome[i] !== B.SNOW && S.rng.hash2(x, y, hseed ^ 0x88) < 0.16) resource[i] = 2; // fishing grounds
+      }
+    }
+    fert.set(fertBase);
+
+    // --- Hidden natural gold veins.
+    const veins = [];
+    {
+      const cand = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        if (biome[i] === B.MOUNTAIN || biome[i] === B.HILLS) cand.push([x, y]);
+      }
+      const shuffled = rng.shuffle(cand);
+      for (const [x, y] of shuffled) {
+        if (veins.length >= 10) break;
+        if (veins.every((v) => (v.x - x) ** 2 + (v.y - y) ** 2 >= 100)) {
+          veins.push({ x, y, revealed: false, divine: false });
+        }
+      }
+    }
+
+    // --- Named regions (flood fills).
+    const regions = [];
+    {
+      const seen = new Uint8Array(N);
+      const MIN_SIZE = { range: 14, forest: 40, desert: 50 };
+      const KIND_OF = { [B.MOUNTAIN]: 'range', [B.FOREST]: 'forest', [B.DESERT]: 'desert' };
+      function flood(start, match) {
+        const cells = [start];
+        seen[start] = 1;
+        for (let h2 = 0; h2 < cells.length; h2++) {
+          const i = cells[h2];
+          const x = i % W, y = (i / W) | 0;
+          const tryPush = (j) => { if (!seen[j] && match(j)) { seen[j] = 1; cells.push(j); } };
+          if (x > 0) tryPush(i - 1);
+          if (x < W - 1) tryPush(i + 1);
+          if (y > 0) tryPush(i - W);
+          if (y < H - 1) tryPush(i + W);
+        }
+        return cells;
+      }
+      function registerRegion(cells, kind) {
+        let cx = 0, cy = 0;
+        for (const i of cells) { cx += i % W; cy += (i / W) | 0; }
+        cx /= cells.length; cy /= cells.length;
+        // Anchor the label on a member cell nearest the centroid.
+        let best = cells[0], bd = Infinity;
+        for (const i of cells) {
+          const d = ((i % W) - cx) ** 2 + (((i / W) | 0) - cy) ** 2;
+          if (d < bd) { bd = d; best = i; }
+        }
+        const id = regions.length;
+        for (const i of cells) regionOf[i] = id;
+        regions.push({ id, kind, name: namer.region(kind), cx: best % W, cy: (best / W) | 0, size: cells.length });
+      }
+      for (let i = 0; i < N; i++) {
+        if (seen[i] || isWater(i)) continue;
+        const kind = KIND_OF[biome[i]];
+        if (!kind) { seen[i] = 1; continue; }
+        const cells = flood(i, (j) => biome[j] === biome[i]);
+        if (cells.length >= MIN_SIZE[kind]) registerRegion(cells, kind);
+      }
+      // Water bodies: the largest is the ocean; other big ones are seas.
+      const bodies = [];
+      for (let i = 0; i < N; i++) {
+        if (seen[i] || !isWater(i)) continue;
+        bodies.push(flood(i, (j) => isWater(j)));
+      }
+      bodies.sort((a, b) => b.length - a.length);
+      bodies.forEach((cells, k) => {
+        if (k === 0) registerRegion(cells, 'ocean');
+        else if (cells.length >= 160) registerRegion(cells, 'sea');
+      });
+    }
+
+    // --- Culture homelands: 4 fertile coastal sites, far apart.
+    const homelands = [];
+    {
+      const cand = [];
+      for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) {
+        const i = idx(x, y);
+        if (isWater(i) || seaDist[i] > 2 || temp[i] < 0.24) continue;
+        let f = 0;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+          f += fertBase[idx(nx, ny)];
+        }
+        if (f > 8) cand.push({ x, y, f });
+      }
+      cand.sort((a, b) => b.f - a.f);
+      const top = cand.slice(0, 400);
+      if (top.length) {
+        homelands.push(top[0]);
+        while (homelands.length < 4 && top.length) {
+          let best = null, bestD = -1;
+          for (const c of top) {
+            let dmin = Infinity;
+            for (const hpt of homelands) dmin = Math.min(dmin, (hpt.x - c.x) ** 2 + (hpt.y - c.y) ** 2);
+            const score = dmin + c.f * 4;
+            if (dmin > 120 && score > bestD) { bestD = score; best = c; }
+          }
+          if (!best) break;
+          homelands.push(best);
+        }
+      }
+    }
+
+    return {
+      seed, W, H, sea, idx,
+      height, temp, moist, fertBase, fert, biome, river, resource,
+      seaDist, landDist, regionOf, regions, riverPaths, veins, homelands,
+      namer,
+      isWater: (x, y) => height[idx(x, y)] <= sea,
+    };
+  }
+
+  S.worldgen = { generate, W, H };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — the Chronicle: an append-only log of everything that
+   happens, with prose templates. This is the seed of the event-sourcing
+   architecture from the design bible: the sim emits facts, the chronicle
+   renders them as history. */
+(function (S) {
+  'use strict';
+
+  // importance: 1 minor, 2 notable, 3 major. tone: 'plain' | 'god' | 'doom'.
+  const T = {
+    landing: (w, d) => [2, 'plain', `${S.CULTURES[d.culture].demonym} come ashore; ${d.name} is raised where the boats were drawn up.`],
+    found: (w, d) => [1, 'plain', `${d.name} founded by settlers out of ${d.parent}.`],
+    camp: (w, d) => [2, 'plain', `A mining camp takes root beneath ${d.region}; they call it ${d.name}.`],
+    village: (w, d) => [1, 'plain', `${d.name} grows into a proper village.`],
+    town: (w, d) => [2, 'plain', `${d.name} raises walls — a town of some ${d.pop} souls.`],
+    city: (w, d) => [3, 'plain', `${d.name} is now a city, greatest of ${S.CULTURES[d.culture].demonym}' holdings.`],
+    goldSeed: (w, d) => [3, 'god', `A vein of gold blooms in the stone of ${d.region}. The mountain did not hold it yesterday.`],
+    goldFound: (w, d) => [2, 'plain', `Prospectors strike gold near ${d.name}. Hungry men arrive within the season.`],
+    boom: (w, d) => [2, 'plain', `${d.name} swells with fortune-seekers and grows rich on the diggings.`],
+    famine: (w, d) => [2, 'plain', `Lean years strike ${d.name}; the granaries echo.`],
+    abandon: (w, d) => [d.tier >= 2 ? 3 : 2, 'plain', `${d.name} stands empty${d.why ? ' — ' + d.why : ''}. The roads grow over.`],
+    curse: (w, d) => [3, 'god', `The skies over ${d.place} turn against the living. The storm does not pass. The priests say something is angry.`],
+    stormExodus: (w, d) => [2, 'doom', `The people of ${d.name} abandon their homes to the endless storm.`],
+    bless: (w, d) => [3, 'god', `A gentleness settles on the land near ${d.place}; seeds take root wherever they fall. Shrines appear by the field-edges.`],
+    dragon: (w, d) => [3, 'doom', `A wyrm has nested in ${d.region}. They name it ${d.dragon}. Its shadow falls across ${d.name}.`],
+    raid: (w, d) => [2, 'doom', `${d.dragon} descends upon ${d.name}; the granaries burn.`],
+    razed: (w, d) => [3, 'doom', `${d.name} is no more. Men will call that place ${d.ruinName}.`],
+    slain: (w, d) => [3, 'plain', `${d.hero} of ${d.name} slays ${d.dragon} in ${d.region}. The hoard comes down the mountain in carts.`],
+    dragonGone: (w, d) => [2, 'plain', `${d.dragon}, finding nothing left worth coveting, flies beyond the map's edge.`],
+    road: (w, d) => [1, 'plain', `A road now runs between ${d.a} and ${d.b}.`],
+    migration: (w, d) => [1, 'plain', `Refugees out of ${d.from} settle in ${d.to}.`],
+  };
+
+  function create() {
+    return { events: [], nextId: 1 };
+  }
+
+  function add(world, type, data) {
+    const tpl = T[type];
+    if (!tpl) throw new Error('unknown chronicle type: ' + type);
+    const [imp, tone, text] = tpl(world, data);
+    const e = {
+      id: world.chronicle.nextId++,
+      type, imp, tone, text,
+      year: world.year, month: world.month,
+      x: data.x, y: data.y,
+    };
+    world.chronicle.events.push(e);
+    if (world.onEvent) world.onEvent(e);
+    return e;
+  }
+
+  function toMarkdown(world) {
+    const lines = [];
+    lines.push(`# The Chronicle of ${world.title || 'an Unnamed World'}`);
+    lines.push('');
+    lines.push(`*World seed \`${world.seed}\` · years 0–${world.year} · set down by no mortal hand.*`);
+    lines.push('');
+    let century = -1;
+    let lastYear = -1;
+    for (const e of world.chronicle.events) {
+      const c = Math.floor(e.year / 100);
+      if (c !== century) {
+        century = c;
+        lines.push(`## Years ${c * 100}–${c * 100 + 99}`);
+        lines.push('');
+      }
+      const yearLabel = e.year === lastYear ? '     ' : String(e.year).padStart(5, ' ');
+      lastYear = e.year;
+      const mark = e.tone === 'god' ? ' ✦' : e.tone === 'doom' ? ' †' : '';
+      lines.push(`- **Year ${e.year}**${mark} — ${e.text}`);
+    }
+    lines.push('');
+    lines.push('---');
+    const alive = world.settlements.filter((s) => !s.ruined);
+    lines.push(`*As of Year ${world.year}: ${alive.length} living settlements, ` +
+      `${world.ruins.length} ruins, ${world.chronicle.events.length} recorded events.*`);
+    return lines.join('\n');
+  }
+
+  S.chronicle = { create, add, toMarkdown };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — world state container + shared queries.
+   Wraps the generated geography with runtime state (settlements, storms,
+   dragons, roads, chronicle) and the helper functions every system uses. */
+(function (S) {
+  'use strict';
+  const B = () => S.B;
+
+  const MONTHS = ['Thaw', 'Seedtime', 'Bloom', 'Highsun', 'Longsun', 'Harvest',
+    'Gleaning', 'Mistfall', 'Frostgate', 'Deepwinter', 'Icewane', 'Stirring'];
+  const TIER_NAMES = ['hamlet', 'village', 'town', 'city'];
+  const TIER_POP = [0, 450, 1300, 3200];
+  const RUIN_NAMES = ['Dragonfall', 'Wyrmscar', 'Ashmark', 'Cinderrest'];
+
+  function create(seed) {
+    const w = S.worldgen.generate(seed);
+    w.settlements = [];
+    w.ruins = [];        // {x,y,name,year,tier,cause}
+    w.storms = [];       // {x,y,r}
+    w.blesses = [];      // {x,y,r}
+    w.dragons = [];      // {name,x,y,bornYear,lastRaid,raidEvery,regionName}
+    w.deadLairs = [];
+    w.roads = [];        // {a,b,pts}
+    w.roadDeg = {};      // settlement id -> degree
+    w.claims = new Int16Array(w.W * w.H).fill(-1);
+    w.settleGrid = new Int16Array(w.W * w.H).fill(-1); // cell -> alive settlement id
+    w.settlementsById = [];
+    w.tick = 0; w.month = 0; w.year = 0;
+    w.chronicle = S.chronicle.create();
+    w.rngSim = S.rng.makeRng(seed, 'sim');
+    w.nextSettlementId = 1;
+    w.leanYears = 0;
+    w.fertDirty = false;
+    w.dirty = { terrain: true, features: true, borders: true, labels: true };
+    w.title = 'Seed ' + seed;
+
+    attachHelpers(w);
+
+    // Founding landings: each culture puts two hamlets ashore near its homeland.
+    w.homelands.forEach((h, ci) => {
+      if (ci >= S.CULTURES.length) return;
+      const first = w.bestSiteNear(h.x, h.y, 0, 5);
+      if (!first) return;
+      const a = w.addSettlement({ x: first.x, y: first.y, culture: ci, pop: w.rngSim.int(90, 150) });
+      S.chronicle.add(w, 'landing', { culture: ci, name: a.name, x: a.x, y: a.y });
+      const second = w.bestSiteNear(h.x, h.y, 3, 8);
+      if (second) {
+        const b2 = w.addSettlement({ x: second.x, y: second.y, culture: ci, pop: w.rngSim.int(60, 110) });
+        S.chronicle.add(w, 'found', { name: b2.name, parent: a.name, x: b2.x, y: b2.y });
+      }
+    });
+    w.recomputeClaims();
+    return w;
+  }
+
+  function attachHelpers(w) {
+    const { W, H, idx } = w;
+    w.inB = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
+    w.isLandAt = (x, y) => w.inB(x, y) && w.height[idx(x, y)] > w.sea;
+    w.monthName = () => MONTHS[w.month];
+    w.tierName = (t) => TIER_NAMES[t];
+    w.tierOf = (pop) => pop >= TIER_POP[3] ? 3 : pop >= TIER_POP[2] ? 2 : pop >= TIER_POP[1] ? 1 : 0;
+
+    w.fertAround = (x, y, r) => {
+      let f = 0;
+      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (w.inB(nx, ny)) f += w.fert[idx(nx, ny)];
+      }
+      return f;
+    };
+    w.zoneAt = (zones, x, y) => {
+      for (const z of zones) {
+        const d2 = (z.x - x) ** 2 + (z.y - y) ** 2;
+        if (d2 <= z.r * z.r) return z;
+      }
+      return null;
+    };
+    w.stormAt = (x, y) => w.zoneAt(w.storms, x, y);
+    w.blessAt = (x, y) => w.zoneAt(w.blesses, x, y);
+
+    w.recomputeFert = () => {
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const i = idx(x, y);
+        let f = w.fertBase[i];
+        if (w.blessAt(x, y)) f *= 1.7;
+        if (w.stormAt(x, y)) f *= 0.12;
+        w.fert[i] = f;
+      }
+      w.fertDirty = true;
+      w.dirty.terrain = true;
+    };
+
+    w.settlementNear = (x, y, r) => {
+      let best = null, bd = (r + 0.01) ** 2;
+      if (r <= 6.5) {
+        // Small radius: scan the occupancy grid, not the settlement list.
+        const R = Math.ceil(r);
+        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (!w.inB(nx, ny)) continue;
+          const id = w.settleGrid[idx(nx, ny)];
+          if (id < 0) continue;
+          const s = w.settlementsById[id];
+          const d2 = (s.x - x) ** 2 + (s.y - y) ** 2;
+          if (d2 < bd) { bd = d2; best = s; }
+        }
+        return best;
+      }
+      for (const s of w.settlements) {
+        if (s.ruined) continue;
+        const d2 = (s.x - x) ** 2 + (s.y - y) ** 2;
+        if (d2 < bd) { bd = d2; best = s; }
+      }
+      return best;
+    };
+
+    w.hasFishAdj = (x, y) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (w.inB(nx, ny) && w.resource[idx(nx, ny)] === 2) return true;
+      }
+      return false;
+    };
+
+    w.goldVeinNear = (x, y, r, revealedOnly) => {
+      for (const v of w.veins) {
+        if (revealedOnly && !v.revealed) continue;
+        if ((v.x - x) ** 2 + (v.y - y) ** 2 <= r * r) return v;
+      }
+      return null;
+    };
+
+    w.siteScore = (x, y, nearList) => {
+      if (!w.isLandAt(x, y)) return -Infinity;
+      const i = idx(x, y);
+      const b = w.biome[i];
+      if (b === S.B.MOUNTAIN || b === S.B.SNOW) return -Infinity;
+      if (nearList) {
+        for (const s of nearList) {
+          if ((s.x - x) ** 2 + (s.y - y) ** 2 <= 16) return -Infinity; // 4 cell spacing
+        }
+      } else if (w.settlementNear(x, y, 4)) return -Infinity;
+      if (w.stormAt(x, y)) return -Infinity;
+      let score = w.fertAround(x, y, 2) * 1.0;
+      if (w.blessAt(x, y)) score += 3; // the land feels kind
+      if (w.river[i]) score += 2.5;
+      if (w.seaDist[i] <= 1) score += 1.5;
+      if (w.hasFishAdj(x, y)) score += 2;
+      if (w.goldVeinNear(x, y, 3, true)) score += 9;
+      return score;
+    };
+
+    w.bestSiteNear = (x, y, rmin, rmax) => {
+      // Gather nearby settlements once; per-cell spacing checks use this short list.
+      const nearList = [];
+      const R2 = (rmax + 4) ** 2;
+      for (const s of w.settlements) {
+        if (!s.ruined && (s.x - x) ** 2 + (s.y - y) ** 2 <= R2) nearList.push(s);
+      }
+      let best = null, bs = 8.5; // minimum livable score — marginal land stays wild
+      for (let dy = -rmax; dy <= rmax; dy++) for (let dx = -rmax; dx <= rmax; dx++) {
+        const d2 = dx * dx + dy * dy;
+        if (d2 < rmin * rmin || d2 > rmax * rmax) continue;
+        const nx = x + dx, ny = y + dy;
+        if (!w.inB(nx, ny)) continue;
+        const sc = w.siteScore(nx, ny, nearList) - Math.sqrt(d2) * 0.15;
+        if (sc > bs) { bs = sc; best = { x: nx, y: ny, score: sc }; }
+      }
+      return best;
+    };
+
+    w.campSiteNear = (x, y) => {
+      // Miners settle rough country: pick the best non-mountain cell beside
+      // the vein; if the range is solid stone, they camp on the stone itself.
+      let best = null, bs = -Infinity, fallback = null;
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (!w.inB(nx, ny) || !w.isLandAt(nx, ny)) continue;
+        if (w.settlementNear(nx, ny, 2.5) || w.stormAt(nx, ny)) continue;
+        const b = w.biome[idx(nx, ny)];
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (b === S.B.MOUNTAIN || b === S.B.SNOW) {
+          if (!fallback && d <= 2) fallback = { x: nx, y: ny };
+          continue;
+        }
+        const sc = w.fertAround(nx, ny, 1) - d * 0.3;
+        if (sc > bs) { bs = sc; best = { x: nx, y: ny }; }
+      }
+      return best || fallback;
+    };
+
+    w.nearestMountain = (x, y, rmax) => {
+      let best = null, bd = Infinity;
+      for (let dy = -rmax; dy <= rmax; dy++) for (let dx = -rmax; dx <= rmax; dx++) {
+        const nx = x + dx, ny = y + dy;
+        if (!w.inB(nx, ny) || w.biome[idx(nx, ny)] !== S.B.MOUNTAIN) continue;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bd) { bd = d2; best = { x: nx, y: ny }; }
+      }
+      return best;
+    };
+
+    w.regionNameAt = (x, y, fallback) => {
+      const rid = w.regionOf[idx(x, y)];
+      if (rid >= 0) return w.regions[rid].name;
+      // Look a little around for a named region (labels feel better than "the wilds").
+      for (let r = 1; r <= 4; r++) {
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          const nx = x + dx, ny = y + dy;
+          if (!w.inB(nx, ny)) continue;
+          const rr = w.regionOf[idx(nx, ny)];
+          if (rr >= 0 && w.regions[rr].kind !== 'ocean' && w.regions[rr].kind !== 'sea') return w.regions[rr].name;
+        }
+      }
+      return fallback || 'the wild country';
+    };
+
+    w.addSettlement = ({ x, y, culture, pop, name, gold }) => {
+      const s = {
+        id: w.nextSettlementId++,
+        name: name || w.namer.place(culture),
+        x, y, culture,
+        pop, tier: w.tierOf(pop), maxTier: w.tierOf(pop),
+        prosp: 1, wealth: 0,
+        gold: !!gold, boomUntil: 0,
+        declineStreak: 0, hungerStreak: 0,
+        foundedYear: w.year, lastFamineYear: -99,
+        cap: 100, fish: w.hasFishAdj(x, y),
+        ruined: false,
+      };
+      w.settlements.push(s);
+      w.settlementsById[s.id] = s;
+      w.settleGrid[idx(x, y)] = s.id;
+      w.dirty.features = true; w.dirty.borders = true; w.dirty.labels = true;
+      return s;
+    };
+
+    w.ruinSettlement = (s, cause, altName) => {
+      s.ruined = true;
+      s.ruinedYear = w.year;
+      w.settleGrid[idx(s.x, s.y)] = -1;
+      const usedAlt = w.ruins.filter((r2) => r2.alt).length;
+      const alt = altName ? (RUIN_NAMES[usedAlt % RUIN_NAMES.length]) : null;
+      w.ruins.push({ x: s.x, y: s.y, name: s.name, year: w.year, tier: s.tier, cause, alt });
+      w.dirty.features = true; w.dirty.borders = true; w.dirty.labels = true;
+      return alt;
+    };
+
+    w.recomputeClaims = () => {
+      w.claims.fill(-1);
+      const strength = new Float32Array(w.claims.length);
+      const INFLUENCE = [4, 6, 9, 12];
+      for (const s of w.settlements) {
+        if (s.ruined) continue;
+        const R = INFLUENCE[s.tier];
+        for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+          const nx = s.x + dx, ny = s.y + dy;
+          if (!w.inB(nx, ny) || !w.isLandAt(nx, ny)) continue;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d > R) continue;
+          const str = (s.tier + 1.5) * (1 - d / (R + 1));
+          const i = idx(nx, ny);
+          if (str > strength[i]) { strength[i] = str; w.claims[i] = s.culture; }
+        }
+      }
+      w.dirty.borders = true;
+    };
+
+    w.aliveSettlements = () => w.settlements.filter((s) => !s.ruined);
+  }
+
+  S.world = { create, MONTHS, TIER_NAMES };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — the simulation tick. One tick = one month.
+   Order is fixed and deterministic: climate → settlements → colonization
+   → gold → dragons → roads → claims. The world runs with zero divine
+   input; god powers only perturb it. */
+(function (S) {
+  'use strict';
+
+  const FEAR_R = 8;      // dragon terror radius
+  const RAID_R = 10;
+
+  function tick(w) {
+    const rng = w.rngSim;
+    w.tick++;
+    w.month = w.tick % 12;
+    w.year = Math.floor(w.tick / 12);
+
+    if (w.month === 0) yearly(w, rng);
+
+    // --- Per-settlement dragon fear cache (cheap: few dragons).
+    const feared = new Set();
+    for (const d of w.dragons) {
+      for (const s of w.settlements) {
+        if (s.ruined) continue;
+        if ((s.x - d.x) ** 2 + (s.y - d.y) ** 2 <= FEAR_R * FEAR_R) feared.add(s.id);
+      }
+    }
+
+    // --- Settlements.
+    for (const s of w.settlements) {
+      if (s.ruined) continue;
+      const storm = w.stormAt(s.x, s.y);
+
+      // Food capacity: staggered recompute, or forced when fertility changed.
+      const deg = w.roadDeg[s.id] || 0;
+      const boom = w.tick < s.boomUntil;
+      s.prosp = 1 + 0.15 * deg + (s.gold ? 2.5 : 0) + (s.fish ? 0.3 : 0) + s.tier * 0.15 + (boom ? 1 : 0);
+
+      if (w.fertDirty || (w.tick + s.id) % 24 === 0) {
+        let cap = w.fertAround(s.x, s.y, 3) * 26;
+        if (s.fish && !storm) cap += 170;
+        cap *= 1 + 0.7 * Math.max(0, s.prosp - 1); // trade feeds cities beyond what fields carry
+        if (w.leanYears > 0) cap *= 0.85;
+        s.cap = Math.max(25, cap);
+      }
+
+      const prev = s.pop;
+      if (storm) {
+        s.pop *= 0.972; // the sky itself is against them
+      } else {
+        let r = 0.011 * (0.75 + 0.25 * Math.min(2.2, s.prosp));
+        if (boom) r *= 1.6;
+        if (feared.has(s.id)) r *= 0.25;
+        s.pop += s.pop * r * (1 - s.pop / s.cap);
+      }
+
+      s.declineStreak = s.pop < prev - 0.01 ? s.declineStreak + 1 : 0;
+
+      // Hunger and famine: chronicled only when the deficit is deep and rare.
+      if (s.pop > s.cap * 1.2) {
+        s.hungerStreak++;
+        if (s.hungerStreak >= 15 && s.pop > 250 && w.year - s.lastFamineYear > 15) {
+          s.lastFamineYear = w.year;
+          s.hungerStreak = 0;
+          S.chronicle.add(w, 'famine', { name: s.name, x: s.x, y: s.y });
+          s.pop *= 0.82;
+          const dest = bestNeighbor(w, s);
+          if (dest) { dest.pop += s.pop * 0.06; s.pop *= 0.94; }
+        }
+      } else if (s.hungerStreak > 0) s.hungerStreak = Math.max(0, s.hungerStreak - 2);
+
+      // Tier transitions: chronicled only the first time a rank is reached.
+      const t = w.tierOf(s.pop);
+      if (t > s.tier) {
+        s.tier = t;
+        if (t > s.maxTier) {
+          s.maxTier = t;
+          const data = { name: s.name, pop: Math.round(s.pop / 50) * 50, culture: s.culture, x: s.x, y: s.y };
+          S.chronicle.add(w, t === 1 ? 'village' : t === 2 ? 'town' : 'city', data);
+        }
+        w.dirty.features = w.dirty.borders = w.dirty.labels = true;
+      } else if (t < s.tier) {
+        s.tier = t; // quiet decline; the chronicle notices only the fall to ruin
+        w.dirty.features = w.dirty.labels = true;
+      }
+
+      // Abandonment.
+      if ((s.pop < 35 && s.declineStreak > 24) || (storm && s.pop < 55)) {
+        const why = storm ? null : (feared.has(s.id) ? 'its people fled the wyrm' : null);
+        if (storm) S.chronicle.add(w, 'stormExodus', { name: s.name, x: s.x, y: s.y });
+        else S.chronicle.add(w, 'abandon', { name: s.name, tier: s.tier, why, x: s.x, y: s.y });
+        w.ruinSettlement(s, storm ? 'storm' : 'decline');
+        const dest = bestNeighbor(w, s);
+        if (dest) {
+          dest.pop += s.pop * 0.6;
+          S.chronicle.add(w, 'migration', { from: s.name, to: dest.name, x: dest.x, y: dest.y, fx: s.x, fy: s.y });
+        }
+        continue;
+      }
+
+      // Wealth accrues from prosperity; this is what dragons smell.
+      s.wealth += s.prosp * s.pop / 200000;
+    }
+    w.fertDirty = false;
+
+    // --- Colonization (fission), damped by regional crowding.
+    const aliveNow = w.aliveSettlements();
+    for (const s of aliveNow) {
+      if (s.pop > s.cap * 0.7 && s.pop > 150 && rng.chance(0.005)) {
+        let crowd = 0;
+        for (const o of aliveNow) {
+          if ((o.x - s.x) ** 2 + (o.y - s.y) ** 2 <= 64) crowd++;
+        }
+        if (rng.next() < (crowd - 2) / 10) continue; // packed regions stop spilling outward
+        const site = w.bestSiteNear(s.x, s.y, 5, 16);
+        if (site) {
+          const emig = Math.max(40, s.pop * 0.28);
+          s.pop -= emig * 0.9;
+          const child = w.addSettlement({ x: site.x, y: site.y, culture: s.culture, pop: emig });
+          S.chronicle.add(w, 'found', { name: child.name, parent: s.name, x: child.x, y: child.y, fx: s.x, fy: s.y });
+        }
+      }
+    }
+
+    // --- Gold: discovery near settlements, mining camps in the wilds.
+    for (const v of w.veins) {
+      if (!v.revealed) {
+        const near = w.settlementNear(v.x, v.y, 4.5);
+        if (near && rng.chance(0.02)) {
+          v.revealed = true;
+          near.gold = true;
+          near.boomUntil = w.tick + 40 * 12;
+          S.chronicle.add(w, 'goldFound', { name: near.name, x: v.x, y: v.y });
+          S.chronicle.add(w, 'boom', { name: near.name, x: near.x, y: near.y });
+          pullMigrants(w, near, 0.12);
+          w.dirty.features = true;
+        }
+      } else if (!w.settlementNear(v.x, v.y, 4)) {
+        // A known vein with nobody working it draws the desperate.
+        const parent = w.settlementNear(v.x, v.y, 16);
+        const chance = parent ? 0.012 : 0.004;
+        if (rng.chance(chance)) {
+          const spot = w.campSiteNear(v.x, v.y);
+          if (spot) {
+            const culture = parent ? parent.culture : (w.settlementNear(v.x, v.y, 60) || { culture: rng.int(0, S.CULTURES.length - 1) }).culture;
+            const name = w.namer.goldPlace(culture);
+            const camp = w.addSettlement({ x: spot.x, y: spot.y, culture, pop: parent ? 55 : 40, name, gold: true });
+            camp.boomUntil = w.tick + 40 * 12;
+            S.chronicle.add(w, 'camp', { name, region: w.regionNameAt(v.x, v.y, 'the high stone'), x: spot.x, y: spot.y });
+            if (parent) { parent.pop *= 0.96; }
+          }
+        }
+      }
+    }
+
+    // --- Dragons: raids.
+    for (const d of w.dragons.slice()) {
+      if (w.tick - d.lastRaid > d.raidEvery) {
+        let target = null, tw = 8; // only bother with somewhere worth burning
+        for (const s of w.aliveSettlements()) {
+          if ((s.x - d.x) ** 2 + (s.y - d.y) ** 2 <= RAID_R * RAID_R && s.wealth + s.pop / 400 > tw) {
+            tw = s.wealth + s.pop / 400; target = s;
+          }
+        }
+        d.lastRaid = w.tick;
+        d.raidEvery = rng.int(60, 140);
+        if (target) {
+          S.chronicle.add(w, 'raid', { dragon: d.name, name: target.name, x: target.x, y: target.y, fx: d.x, fy: d.y });
+          target.pop *= 0.85;
+          target.wealth *= 0.75;
+          if (target.pop < 400 && rng.chance(0.5)) {
+            const alt = w.ruinSettlement(target, 'dragon', true);
+            S.chronicle.add(w, 'razed', { name: target.name, ruinName: alt, x: target.x, y: target.y });
+            const dest = bestNeighbor(w, target);
+            if (dest) {
+              dest.pop += target.pop * 0.5;
+              S.chronicle.add(w, 'migration', { from: target.name, to: dest.name, x: dest.x, y: dest.y, fx: target.x, fy: target.y });
+            }
+          }
+        }
+      }
+    }
+
+    if (w.claimsDirtyTick && w.tick - w.claimsDirtyTick > 24) {
+      w.recomputeClaims();
+      w.claimsDirtyTick = 0;
+    } else if (w.dirty.borders && !w.claimsDirtyTick) {
+      w.claimsDirtyTick = w.tick;
+    }
+  }
+
+  function yearly(w, rng) {
+    // Lean years: a world-scale harvest cycle.
+    if (w.leanYears > 0) w.leanYears--;
+    else if (rng.chance(0.10)) w.leanYears = rng.int(1, 2);
+
+    // Dragon spawning: wealth near mountains breeds trouble.
+    if (w.dragons.length < 2 && w.year >= 60 && w.tick >= (w.dragonCooldownUntil || 0)) {
+      for (const s of w.aliveSettlements()) {
+        if (s.wealth < 70) continue;
+        const m = w.nearestMountain(s.x, s.y, 6);
+        if (!m) continue;
+        if (rng.chance(Math.min(0.05, 0.015 + s.wealth / 4000))) {
+          const d = {
+            name: 'the wyrm ' + w.namer.dragon(),
+            x: m.x, y: m.y, bornYear: w.year,
+            lastRaid: w.tick, raidEvery: rng.int(48, 110),
+            regionName: w.regionNameAt(m.x, m.y, 'the high peaks'),
+          };
+          w.dragons.push(d);
+          S.chronicle.add(w, 'dragon', { dragon: d.name, region: d.regionName, name: s.name, x: m.x, y: m.y });
+          w.dirty.features = true;
+          break;
+        }
+      }
+    }
+
+    // Dragon slaying & departure.
+    for (const d of w.dragons.slice()) {
+      const heroes = w.aliveSettlements().filter((s) => s.tier >= 2 && (s.x - d.x) ** 2 + (s.y - d.y) ** 2 <= RAID_R * RAID_R);
+      const anyNear = w.settlementNear(d.x, d.y, 12);
+      if (heroes.length && rng.chance(0.10)) {
+        const home = rng.pick(heroes);
+        const hero = 'Ser ' + w.namer.person(home.culture) + ' the Wyrmslayer';
+        S.chronicle.add(w, 'slain', { hero, name: home.name, dragon: d.name, region: d.regionName, x: d.x, y: d.y });
+        home.wealth += 35;
+        home.boomUntil = Math.max(home.boomUntil, w.tick + 10 * 12);
+        w.dragons.splice(w.dragons.indexOf(d), 1);
+        w.deadLairs.push({ x: d.x, y: d.y });
+        w.dragonCooldownUntil = w.tick + 300; // a generation of peace
+        w.dirty.features = true;
+      } else if (!anyNear && rng.chance(0.3)) {
+        S.chronicle.add(w, 'dragonGone', { dragon: d.name, x: d.x, y: d.y });
+        w.dragons.splice(w.dragons.indexOf(d), 1);
+        w.deadLairs.push({ x: d.x, y: d.y });
+        w.dragonCooldownUntil = w.tick + 300;
+        w.dirty.features = true;
+      }
+    }
+
+    // Roads: nearby sizable settlements link up.
+    let built = 0;
+    const alive = w.aliveSettlements().filter((s) => s.tier >= 1);
+    for (let i = 0; i < alive.length && built < 2; i++) {
+      for (let j = i + 1; j < alive.length && built < 2; j++) {
+        const a = alive[i], b = alive[j];
+        const d2 = (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+        if (d2 > 13 * 13) continue;
+        if ((w.roadDeg[a.id] || 0) >= 4 || (w.roadDeg[b.id] || 0) >= 4) continue;
+        if (w.roads.some((r) => (r.a === a.id && r.b === b.id) || (r.a === b.id && r.b === a.id))) continue;
+        if (!rng.chance(0.25)) continue;
+        const pts = roadPath(w, a, b);
+        if (!pts) continue;
+        w.roads.push({ a: a.id, b: b.id, pts });
+        w.roadDeg[a.id] = (w.roadDeg[a.id] || 0) + 1;
+        w.roadDeg[b.id] = (w.roadDeg[b.id] || 0) + 1;
+        S.chronicle.add(w, 'road', { a: a.name, b: b.name, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        w.dirty.features = true;
+        built++;
+      }
+    }
+  }
+
+  function roadPath(w, a, b) {
+    // Sampled straight-ish path; reject if it wades through open water.
+    const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) * 2);
+    const pts = [];
+    let wet = 0;
+    for (let k = 0; k <= steps; k++) {
+      const t = k / steps;
+      const x = a.x + (b.x - a.x) * t;
+      const y = a.y + (b.y - a.y) * t;
+      if (!w.isLandAt(Math.round(x), Math.round(y))) wet++;
+      if (wet > 1) return null;
+      pts.push([x, y]);
+    }
+    return pts;
+  }
+
+  function bestNeighbor(w, s) {
+    let best = null, bd = Infinity;
+    for (const o of w.settlements) {
+      if (o.ruined || o === s) continue;
+      if (w.stormAt(o.x, o.y)) continue;
+      const d2 = (o.x - s.x) ** 2 + (o.y - s.y) ** 2;
+      if (d2 < bd) { bd = d2; best = o; }
+    }
+    return best;
+  }
+
+  function pullMigrants(w, target, frac) {
+    const near = w.aliveSettlements()
+      .filter((s) => s !== target && (s.x - target.x) ** 2 + (s.y - target.y) ** 2 < 400)
+      .sort((a, b2) => b2.pop - a.pop)
+      .slice(0, 2);
+    for (const s of near) {
+      const moved = s.pop * frac * 0.5;
+      s.pop -= moved;
+      target.pop += moved;
+    }
+  }
+
+  function runYears(w, years, onYear) {
+    for (let i = 0; i < years * 12; i++) {
+      tick(w);
+      if (onYear && w.tick % 12 === 0) onYear(w);
+    }
+  }
+
+  S.sim = { tick, runYears };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — acts of god. Three powers, each a perturbation the
+   living world will interpret in its own time. Every act is chronicled;
+   nothing a god does is forgotten. */
+(function (S) {
+  'use strict';
+
+  function seedGold(w, x, y) {
+    x = Math.round(x); y = Math.round(y);
+    if (!w.inB(x, y)) return { ok: false, msg: 'Beyond the edge of the map.' };
+    const b = w.biome[w.idx(x, y)];
+    if (b !== S.B.MOUNTAIN && b !== S.B.HILLS) {
+      return { ok: false, msg: 'The vein must be seeded in high stone — choose mountains or hills.' };
+    }
+    const v = { x, y, revealed: true, divine: true };
+    w.veins.push(v);
+    S.chronicle.add(w, 'goldSeed', { region: w.regionNameAt(x, y, 'the high stone'), x, y });
+    w.dirty.features = true;
+    return { ok: true, x, y };
+  }
+
+  function curseWeather(w, x, y) {
+    x = Math.round(x); y = Math.round(y);
+    if (!w.inB(x, y)) return { ok: false, msg: 'Beyond the edge of the map.' };
+    let anyLand = false;
+    for (let dy = -3; dy <= 3 && !anyLand; dy++) for (let dx = -3; dx <= 3 && !anyLand; dx++) {
+      if (w.isLandAt(x + dx, y + dy)) anyLand = true;
+    }
+    if (!anyLand) return { ok: false, msg: 'Curse the living land — the open sea cares nothing for weather.' };
+    if (w.stormAt(x, y)) return { ok: false, msg: 'That sky is already yours.' };
+    w.storms.push({ x, y, r: 5, start: w.tick });
+    w.recomputeFert();
+    const near = w.settlementNear(x, y, 8);
+    S.chronicle.add(w, 'curse', { place: near ? near.name : w.regionNameAt(x, y, 'the open country'), x, y });
+    w.dirty.features = true;
+    return { ok: true, x, y };
+  }
+
+  function blessLand(w, x, y) {
+    x = Math.round(x); y = Math.round(y);
+    if (!w.inB(x, y)) return { ok: false, msg: 'Beyond the edge of the map.' };
+    if (!w.isLandAt(x, y)) return { ok: false, msg: 'Bless the soil, not the sea.' };
+    if (w.stormAt(x, y)) return { ok: false, msg: 'The storm would devour the blessing — this sky is cursed.' };
+    if (w.blessAt(x, y)) return { ok: false, msg: 'This land already carries your favor.' };
+    w.blesses.push({ x, y, r: 5, start: w.tick });
+    w.recomputeFert();
+    const near = w.settlementNear(x, y, 8);
+    S.chronicle.add(w, 'bless', { place: near ? near.name : w.regionNameAt(x, y, 'the open country'), x, y });
+    w.dirty.features = true;
+    return { ok: true, x, y };
+  }
+
+  S.powers = { seedGold, curseWeather, blessLand };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — the atlas palette. One committed visual world:
+   aged parchment, walnut ink, celadon sea, gilded gold for acts of god,
+   rust red for doom. All map art derives from these values. */
+(function (S) {
+  'use strict';
+
+  const P = {
+    paper: '#e8dcc0',
+    paperDeep: '#d9c9a3',
+    paperShadow: '#c9b993',
+    ink: '#3a2f1e',
+    inkFaded: '#6e5f42',
+    sea: '#aabfb2',
+    seaDeep: '#8aa79a',
+    river: '#5f7a6e',
+    gold: '#b08a2e',
+    goldBright: '#d4aa3c',
+    blood: '#8a3b2a',
+    stormGray: '#5b6470',
+    biomes: {},
+    cultureInk: (id) => S.CULTURES[id] ? S.CULTURES[id].color : '#666',
+  };
+
+  const B = S.B;
+  P.biomes[B.OCEAN] = '#aabfb2';
+  P.biomes[B.SHALLOW] = '#b6c8ba';
+  P.biomes[B.PLAINS] = '#cfc194';
+  P.biomes[B.FOREST] = '#98a672';
+  P.biomes[B.HILLS] = '#c3ad80';
+  P.biomes[B.MOUNTAIN] = '#b7a88c';
+  P.biomes[B.DESERT] = '#ddca97';
+  P.biomes[B.SNOW] = '#e9e4d3';
+  P.biomes[B.MARSH] = '#a6ad81';
+
+  P.BIOME_NAMES = {
+    [B.OCEAN]: 'open water', [B.SHALLOW]: 'shallows', [B.PLAINS]: 'plains',
+    [B.FOREST]: 'forest', [B.HILLS]: 'hills', [B.MOUNTAIN]: 'mountains',
+    [B.DESERT]: 'desert', [B.SNOW]: 'snowfields', [B.MARSH]: 'marshland',
+  };
+
+  // --- small color helpers ---
+  function hexToRgb(h) {
+    const n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function rgbStr(r, g, b, a) {
+    return a === undefined ? `rgb(${r | 0},${g | 0},${b | 0})` : `rgba(${r | 0},${g | 0},${b | 0},${a})`;
+  }
+  function mix(h1, h2, t) {
+    const a = hexToRgb(h1), b = hexToRgb(h2);
+    return rgbStr(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t);
+  }
+  function shade(h, amt) { // amt -1..1 (darken..lighten)
+    const [r, g, b] = hexToRgb(h);
+    const t = amt < 0 ? 0 : 255, k = Math.abs(amt);
+    return rgbStr(r + (t - r) * k, g + (t - g) * k, b + (t - b) * k);
+  }
+  function alpha(h, a) {
+    const [r, g, b] = hexToRgb(h);
+    return rgbStr(r, g, b, a);
+  }
+
+  P.hexToRgb = hexToRgb; P.mix = mix; P.shade = shade; P.alpha = alpha;
+  P.SERIF = 'Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif';
+
+  S.palette = P;
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — camera: pan/zoom over the atlas with smooth easing. */
+(function (S) {
+  'use strict';
+
+  class Camera {
+    constructor(worldW, worldH) {
+      this.ww = worldW; this.wh = worldH;
+      this.vw = 800; this.vh = 600; this.dpr = 1;
+      this.x = worldW / 2; this.y = worldH / 2;
+      this.zoom = 0.5;
+      this.tx = this.x; this.ty = this.y; this.tzoom = this.zoom;
+      this.minZoom = 0.3; this.maxZoom = 7;
+    }
+    resize(vw, vh, dpr) {
+      this.vw = vw; this.vh = vh; this.dpr = dpr;
+      // Fit the whole plate with a paper margin.
+      this.minZoom = Math.min(vw / this.ww, vh / this.wh) * 0.82;
+      if (this.zoom < this.minZoom) { this.zoom = this.tzoom = this.minZoom; }
+    }
+    fit() {
+      this.tzoom = this.minZoom * 1.02;
+      this.tx = this.ww / 2; this.ty = this.wh / 2;
+    }
+    apply(ctx) {
+      const z = this.zoom * this.dpr;
+      ctx.setTransform(z, 0, 0, z,
+        this.dpr * this.vw / 2 - this.x * z,
+        this.dpr * this.vh / 2 - this.y * z);
+    }
+    screenToWorld(px, py) {
+      return [
+        (px - this.vw / 2) / this.zoom + this.x,
+        (py - this.vh / 2) / this.zoom + this.y,
+      ];
+    }
+    worldToScreen(wx, wy) {
+      return [
+        (wx - this.x) * this.zoom + this.vw / 2,
+        (wy - this.y) * this.zoom + this.vh / 2,
+      ];
+    }
+    zoomAt(px, py, factor) {
+      const [wx, wy] = this.screenToWorld(px, py);
+      this.tzoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.tzoom * factor));
+      // Keep the point under the cursor fixed.
+      this.tx = wx - (px - this.vw / 2) / this.tzoom;
+      this.ty = wy - (py - this.vh / 2) / this.tzoom;
+    }
+    panBy(dx, dy) {
+      this.tx -= dx / this.zoom; this.ty -= dy / this.zoom;
+      this.x -= dx / this.zoom; this.y -= dy / this.zoom; // pan feels 1:1, no easing lag
+    }
+    flyTo(wx, wy, zoom) {
+      this.tx = wx; this.ty = wy;
+      if (zoom) this.tzoom = Math.max(this.minZoom, Math.min(this.maxZoom, zoom));
+    }
+    clamp() {
+      const mx = this.ww * 0.15, my = this.wh * 0.15;
+      this.tx = Math.max(-mx + this.ww * 0, Math.min(this.ww + mx - 0, this.tx));
+      this.ty = Math.max(-my, Math.min(this.wh + my, this.ty));
+      this.x = Math.max(-mx, Math.min(this.ww + mx, this.x));
+      this.y = Math.max(-my, Math.min(this.wh + my, this.y));
+    }
+    update(dt) {
+      const k = 1 - Math.exp(-dt * 8);
+      this.x += (this.tx - this.x) * k;
+      this.y += (this.ty - this.y) * k;
+      this.zoom += (this.tzoom - this.zoom) * k;
+      this.clamp();
+    }
+  }
+
+  S.Camera = Camera;
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — terrain painting: the static geography rendered once
+   into an offscreen canvas as an illustrated atlas plate — watercolor
+   biome washes, traced-and-smoothed ink coastlines, engraved sea hatching,
+   hachured mountains, stippled forests. Divine weather (curses/blessings)
+   is composited over the static base so re-tinting is cheap. */
+(function (S) {
+  'use strict';
+
+  const CS = 8;          // world units per cell
+  const SS = 2;          // supersample factor for the cached plate
+  const cache = new WeakMap();
+
+  // --- coastline extraction: boundary edges → loops → Chaikin smoothing ---
+  function coastLoops(w) {
+    const { W, H } = w;
+    const land = (x, y) => x >= 0 && y >= 0 && x < W && y < H && w.height[w.idx(x, y)] > w.sea;
+    // Collect directed boundary edges (land on the left). A vertex can carry
+    // TWO outgoing edges where land cells touch diagonally, so store lists
+    // and resolve the fork by taking the sharpest clockwise turn — that keeps
+    // each island's own interior on the left instead of jumping tracks.
+    const segs = new Map(); // "x,y" -> [[ex,ey], ...]
+    const key = (x, y) => x + ',' + y;
+    const addSeg = (sx, sy, ex, ey) => {
+      const k = key(sx, sy);
+      let list = segs.get(k);
+      if (!list) { list = []; segs.set(k, list); }
+      list.push([ex, ey]);
+    };
+    let edgeCount = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (!land(x, y)) continue;
+        if (!land(x, y - 1)) { addSeg(x, y, x + 1, y); edgeCount++; }
+        if (!land(x + 1, y)) { addSeg(x + 1, y, x + 1, y + 1); edgeCount++; }
+        if (!land(x, y + 1)) { addSeg(x + 1, y + 1, x, y + 1); edgeCount++; }
+        if (!land(x - 1, y)) { addSeg(x, y + 1, x, y); edgeCount++; }
+      }
+    }
+    const takeNext = (from, inDir) => {
+      const k = key(from[0], from[1]);
+      const list = segs.get(k);
+      if (!list || !list.length) return null;
+      let bestI = 0;
+      if (list.length > 1 && inDir) {
+        let bestCross = -Infinity;
+        for (let i = 0; i < list.length; i++) {
+          const ox = list[i][0] - from[0], oy = list[i][1] - from[1];
+          const cross = inDir[0] * oy - inDir[1] * ox;
+          if (cross > bestCross) { bestCross = cross; bestI = i; }
+        }
+      }
+      const next = list.splice(bestI, 1)[0];
+      if (!list.length) segs.delete(k);
+      return next;
+    };
+    const loops = [];
+    while (segs.size) {
+      const startKey = segs.keys().next().value;
+      const start = startKey.split(',').map(Number);
+      const first = takeNext(start, null);
+      const loop = [start, first];
+      let prev = start, cur = first;
+      for (let guard = 0; guard < edgeCount + 8; guard++) {
+        if (cur[0] === start[0] && cur[1] === start[1]) break;
+        const nxt = takeNext(cur, [cur[0] - prev[0], cur[1] - prev[1]]);
+        if (!nxt) break;
+        loop.push(nxt);
+        prev = cur; cur = nxt;
+      }
+      if (loop.length >= 4) loops.push(loop.map(([x, y]) => [x * CS, y * CS]));
+    }
+    // Chaikin corner cutting ×2 for soft, hand-drawn coasts.
+    const smooth = (pts) => {
+      const out = [];
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+        out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+      }
+      return out;
+    };
+    return loops.map((l) => smooth(smooth(l)));
+  }
+
+  function loopsToPath(loops) {
+    const p = new Path2D();
+    for (const l of loops) {
+      p.moveTo(l[0][0], l[0][1]);
+      for (let i = 1; i < l.length; i++) p.lineTo(l[i][0], l[i][1]);
+      p.closePath();
+    }
+    return p;
+  }
+
+  function smoothOpen(pts) {
+    if (pts.length < 3) return pts;
+    const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      out.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]);
+      out.push([a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]);
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  function makeCanvas(w, h) {
+    if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(w, h);
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    return c;
+  }
+
+  // --- the static plate ---
+  function buildBase(w) {
+    const P = S.palette, B = S.B;
+    const pw = w.W * CS * SS, ph = w.H * CS * SS;
+    const cv = makeCanvas(pw, ph);
+    const ctx = cv.getContext('2d');
+    ctx.scale(SS, SS);
+    const jit = (x, y, s) => S.rng.hash2(x, y, s) - 0.5;
+
+    // Paper ground (sea will cover most of it; land wash sits above).
+    ctx.fillStyle = P.sea;
+    ctx.fillRect(0, 0, w.W * CS, w.H * CS);
+
+    // Sea depth: darker away from shore. Painted at cell resolution and
+    // upscaled with smoothing so it grades softly instead of showing a grid.
+    {
+      const lo = makeCanvas(w.W, w.H);
+      const lctx = lo.getContext('2d');
+      for (let y = 0; y < w.H; y++) {
+        for (let x = 0; x < w.W; x++) {
+          const i = w.idx(x, y);
+          if (w.height[i] > w.sea) continue;
+          const d = Math.min(w.landDist[i], 10) / 10;
+          if (d > 0.1) {
+            lctx.fillStyle = P.alpha(P.seaDeep, Math.min(0.5, (d - 0.1) * 0.5));
+            lctx.fillRect(x, y, 1, 1);
+          }
+        }
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(lo, 0, 0, w.W, w.H, 0, 0, w.W * CS, w.H * CS);
+    }
+    // Engraved wave hatching near coasts.
+    ctx.strokeStyle = P.alpha(P.ink, 0.10);
+    ctx.lineWidth = 0.45;
+    for (let y = 0; y < w.H; y++) {
+      for (let x = 0; x < w.W; x++) {
+        const i = w.idx(x, y);
+        if (w.height[i] > w.sea) continue;
+        const d = w.landDist[i];
+        if (d < 2 || d > 5 || S.rng.hash2(x, y, 11) > 0.4) continue;
+        const cx = (x + 0.5 + jit(x, y, 12)) * CS, cy = (y + 0.5 + jit(x, y, 13)) * CS;
+        const len = CS * (0.5 + S.rng.hash2(x, y, 14) * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(cx - len / 2, cy);
+        ctx.quadraticCurveTo(cx, cy - 1.2, cx + len / 2, cy);
+        ctx.stroke();
+      }
+    }
+
+    // Land: clip to smoothed coast, paint watercolor biome blobs.
+    const loops = coastLoops(w);
+    const coast = loopsToPath(loops);
+    ctx.save();
+    ctx.clip(coast);
+    ctx.fillStyle = P.biomes[B.PLAINS];
+    ctx.fill(coast);
+    for (let y = 0; y < w.H; y++) {
+      for (let x = 0; x < w.W; x++) {
+        const i = w.idx(x, y);
+        if (w.height[i] <= w.sea) continue;
+        const b = w.biome[i];
+        let col = P.biomes[b];
+        // Fertile land leans green, poor land leans tawny — quiet but legible.
+        if (b === B.PLAINS || b === B.HILLS) {
+          col = P.mix(col, '#adbd85', Math.max(0, Math.min(1, w.fertBase[i])) * 0.4);
+        }
+        const l = jit(x, y, 21) * 0.09;
+        ctx.fillStyle = col;
+        ctx.globalAlpha = 0.92;
+        const cx = (x + 0.5 + jit(x, y, 22) * 0.5) * CS;
+        const cy = (y + 0.5 + jit(x, y, 23) * 0.5) * CS;
+        const r = CS * (0.75 + S.rng.hash2(x, y, 24) * 0.45);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        if (l !== 0) {
+          ctx.fillStyle = l > 0 ? P.alpha('#ffffff', l) : P.alpha('#000000', -l * 0.7);
+          ctx.beginPath();
+          ctx.arc(cx, cy, r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Rivers (drawn on land, under relief glyphs).
+    ctx.strokeStyle = P.alpha(P.river, 0.8);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    for (const rp of w.riverPaths) {
+      const pts = smoothOpen(smoothOpen(rp.pts.map(([x, y]) => [(x + 0.5) * CS, (y + 0.5) * CS])));
+      ctx.lineWidth = 0.7 + rp.flow * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+      ctx.stroke();
+    }
+    ctx.restore(); // unclip
+
+    // Relief & vegetation glyphs (sorted north→south so overlaps stack).
+    const glyphs = [];
+    for (let y = 0; y < w.H; y++) {
+      for (let x = 0; x < w.W; x++) {
+        const i = w.idx(x, y);
+        if (w.height[i] <= w.sea) continue;
+        glyphs.push([x, y, w.biome[i], i]);
+      }
+    }
+    for (const [x, y, b, i] of glyphs) {
+      const cx = (x + 0.5 + jit(x, y, 31) * 0.6) * CS;
+      const cy = (y + 0.5 + jit(x, y, 32) * 0.6) * CS;
+      if (b === B.MOUNTAIN) {
+        const s = CS * (0.5 + (w.height[i] - w.sea) * 0.9);
+        drawMountain(ctx, P, cx, cy, s, w.temp[i] < 0.3 || w.height[i] > w.sea + 0.4);
+      } else if (b === B.HILLS) {
+        if (S.rng.hash2(x, y, 33) < 0.75) drawHill(ctx, P, cx, cy, CS * 0.34);
+      } else if (b === B.FOREST) {
+        const n = 2 + (S.rng.hash2(x, y, 34) * 2 | 0);
+        for (let k = 0; k < n; k++) {
+          const tx = cx + jit(x * 7 + k, y, 35 + k) * CS * 1.1;
+          const ty = cy + jit(x, y * 7 + k, 36 + k) * CS * 1.1;
+          drawTree(ctx, P, tx, ty, CS * 0.30, w.temp[i] < 0.42);
+        }
+      } else if (b === B.MARSH) {
+        if (S.rng.hash2(x, y, 37) < 0.6) drawMarsh(ctx, P, cx, cy, CS * 0.4);
+      } else if (b === B.DESERT) {
+        if (S.rng.hash2(x, y, 38) < 0.14) {
+          ctx.fillStyle = P.alpha(P.ink, 0.18);
+          ctx.beginPath(); ctx.arc(cx, cy, 0.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // Coast ink: an outer haze, then the pen line.
+    ctx.strokeStyle = P.alpha(P.seaDeep, 0.5);
+    ctx.lineWidth = 3.2;
+    ctx.stroke(coast);
+    ctx.strokeStyle = P.alpha(P.ink, 0.75);
+    ctx.lineWidth = 0.9;
+    ctx.stroke(coast);
+
+    // Paper grain over everything: blotches, fibers, vignette.
+    const grainRng = S.rng.makeRng(w.seed, 'grain');
+    for (let k = 0; k < 240; k++) {
+      const gx = grainRng.range(0, w.W * CS), gy = grainRng.range(0, w.H * CS);
+      const gr = grainRng.range(8, 60);
+      const g = ctx.createRadialGradient(gx, gy, 0, gx, gy, gr);
+      const dark = grainRng.chance(0.6);
+      g.addColorStop(0, P.alpha(dark ? P.paperShadow : '#fffbe8', 0.05));
+      g.addColorStop(1, P.alpha(dark ? P.paperShadow : '#fffbe8', 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(gx - gr, gy - gr, gr * 2, gr * 2);
+    }
+    ctx.fillStyle = P.alpha(P.ink, 0.028);
+    for (let k = 0; k < 2600; k++) {
+      ctx.fillRect(grainRng.range(0, w.W * CS), grainRng.range(0, w.H * CS), 0.55, 0.55);
+    }
+    const vg = ctx.createRadialGradient(w.W * CS / 2, w.H * CS / 2, w.W * CS * 0.32, w.W * CS / 2, w.H * CS / 2, w.W * CS * 0.62);
+    vg.addColorStop(0, 'rgba(90,70,40,0)');
+    vg.addColorStop(1, 'rgba(90,70,40,0.14)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, w.W * CS, w.H * CS);
+
+    return { canvas: cv, coast };
+  }
+
+  function drawMountain(ctx, P, cx, cy, s, snowcap) {
+    ctx.strokeStyle = P.alpha(P.ink, 0.6);
+    ctx.lineWidth = 0.55;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.9, cy + s * 0.55);
+    ctx.lineTo(cx - s * 0.15, cy - s * 0.75);
+    ctx.lineTo(cx + s * 0.2, cy - s * 0.1);
+    ctx.lineTo(cx + s * 0.45, cy - s * 0.45);
+    ctx.lineTo(cx + s * 0.95, cy + s * 0.55);
+    ctx.stroke();
+    // Shadow hatch on the eastern face.
+    ctx.strokeStyle = P.alpha(P.ink, 0.28);
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.15, cy - s * 0.7);
+    ctx.lineTo(cx + s * 0.28, cy + s * 0.5);
+    ctx.stroke();
+    if (snowcap) {
+      ctx.strokeStyle = 'rgba(255,252,240,0.9)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.moveTo(cx - s * 0.32, cy - s * 0.42);
+      ctx.lineTo(cx - s * 0.15, cy - s * 0.72);
+      ctx.lineTo(cx + s * 0.02, cy - s * 0.5);
+      ctx.stroke();
+    }
+  }
+
+  function drawHill(ctx, P, cx, cy, s) {
+    ctx.strokeStyle = P.alpha(P.ink, 0.35);
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s, Math.PI * 1.05, Math.PI * 1.95);
+    ctx.stroke();
+  }
+
+  function drawTree(ctx, P, cx, cy, s, conifer) {
+    if (conifer) {
+      ctx.fillStyle = P.alpha('#5d6f4a', 0.85);
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - s * 1.5);
+      ctx.lineTo(cx - s * 0.55, cy + s * 0.4);
+      ctx.lineTo(cx + s * 0.55, cy + s * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillStyle = P.alpha('#6d7f52', 0.8);
+      ctx.beginPath();
+      ctx.arc(cx, cy - s * 0.5, s * 0.72, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = P.alpha(P.ink, 0.5);
+    ctx.lineWidth = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - s * 0.2);
+    ctx.lineTo(cx, cy + s * 0.55);
+    ctx.stroke();
+  }
+
+  function drawMarsh(ctx, P, cx, cy, s) {
+    ctx.strokeStyle = P.alpha(P.ink, 0.3);
+    ctx.lineWidth = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy);
+    ctx.moveTo(cx - s * 0.5, cy - s * 0.4); ctx.lineTo(cx + s * 0.5, cy - s * 0.4);
+    ctx.moveTo(cx - s * 0.2, cy - s * 0.4); ctx.lineTo(cx - s * 0.2, cy - s * 0.9);
+    ctx.stroke();
+  }
+
+  // --- divine weather composited over the base ---
+  function composite(w, entry) {
+    const P = S.palette;
+    const pw = w.W * CS * SS, ph = w.H * CS * SS;
+    if (!entry.composite) entry.composite = makeCanvas(pw, ph);
+    const ctx = entry.composite.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pw, ph);
+    ctx.drawImage(entry.base.canvas, 0, 0);
+    ctx.scale(SS, SS);
+    for (const z of w.blesses) {
+      const g = ctx.createRadialGradient(z.x * CS, z.y * CS, 0, z.x * CS, z.y * CS, z.r * CS * 1.2);
+      g.addColorStop(0, P.alpha(P.goldBright, 0.16));
+      g.addColorStop(0.7, P.alpha(P.goldBright, 0.07));
+      g.addColorStop(1, P.alpha(P.goldBright, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(z.x * CS, z.y * CS, z.r * CS * 1.25, 0, Math.PI * 2); ctx.fill();
+    }
+    for (const z of w.storms) {
+      const g = ctx.createRadialGradient(z.x * CS, z.y * CS, 0, z.x * CS, z.y * CS, z.r * CS * 1.3);
+      g.addColorStop(0, P.alpha(P.stormGray, 0.34));
+      g.addColorStop(0.75, P.alpha(P.stormGray, 0.18));
+      g.addColorStop(1, P.alpha(P.stormGray, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(z.x * CS, z.y * CS, z.r * CS * 1.35, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+
+  function get(w) {
+    let entry = cache.get(w);
+    if (!entry) {
+      entry = { base: buildBase(w), composite: null, zonesKey: '' };
+      cache.set(w, entry);
+    }
+    const zk = w.storms.length + '/' + w.blesses.length;
+    if (!entry.composite || entry.zonesKey !== zk) {
+      composite(w, entry);
+      entry.zonesKey = zk;
+    }
+    return entry;
+  }
+
+  S.terrain = { get, CS, SS };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — map features drawn each frame in world space:
+   settlements (glyphs grow hamlet → city), ruins, gold, dragon lairs,
+   roads, and culture borders. Ink-and-paper vector art, no bitmaps. */
+(function (S) {
+  'use strict';
+  const CS = 8;
+  const cache = new WeakMap();
+
+  function ensure(w) {
+    let e = cache.get(w);
+    if (!e) { e = { roadsKey: -1, roadsPath: null, bordersDirty: true, borderPaths: null, tint: null }; cache.set(w, e); }
+    if (e.roadsKey !== w.roads.length) {
+      const p = new Path2D();
+      for (const r of w.roads) {
+        const pts = r.pts;
+        if (pts.length < 2) continue;
+        p.moveTo((pts[0][0] + 0.5) * CS, (pts[0][1] + 0.5) * CS);
+        for (let i = 1; i < pts.length - 1; i++) {
+          const jx = (S.rng.hash2(i, r.a * 31 + r.b, 5) - 0.5) * CS * 0.7;
+          const jy = (S.rng.hash2(r.a * 31 + r.b, i, 6) - 0.5) * CS * 0.7;
+          p.lineTo((pts[i][0] + 0.5) * CS + jx, (pts[i][1] + 0.5) * CS + jy);
+        }
+        const last = pts[pts.length - 1];
+        p.lineTo((last[0] + 0.5) * CS, (last[1] + 0.5) * CS);
+      }
+      e.roadsPath = p;
+      e.roadsKey = w.roads.length;
+    }
+    if (w.dirty.borders || !e.borderPaths) {
+      buildBorders(w, e);
+      w.dirty.borders = false;
+    }
+    return e;
+  }
+
+  function buildBorders(w, e) {
+    const P = S.palette;
+    // Tint wash: one low-res canvas scaled up softly.
+    const tc = (typeof OffscreenCanvas !== 'undefined') ? new OffscreenCanvas(w.W, w.H) : (() => { const c = document.createElement('canvas'); c.width = w.W; c.height = w.H; return c; })();
+    const tctx = tc.getContext('2d');
+    tctx.clearRect(0, 0, w.W, w.H);
+    for (let y = 0; y < w.H; y++) {
+      for (let x = 0; x < w.W; x++) {
+        const c = w.claims[w.idx(x, y)];
+        if (c < 0) continue;
+        tctx.fillStyle = P.alpha(P.cultureInk(c), 0.14);
+        tctx.fillRect(x, y, 1, 1);
+      }
+    }
+    // Boundary strokes per culture.
+    const paths = new Map();
+    const get = (c) => { if (!paths.has(c)) paths.set(c, new Path2D()); return paths.get(c); };
+    for (let y = 0; y < w.H; y++) {
+      for (let x = 0; x < w.W; x++) {
+        const i = w.idx(x, y);
+        const c = w.claims[i];
+        if (c < 0) continue;
+        const right = x < w.W - 1 ? w.claims[i + 1] : -1;
+        const below = y < w.H - 1 ? w.claims[i + w.W] : -1;
+        if (right !== c && w.isLandAt(x + 1, y)) {
+          const p = get(c);
+          p.moveTo((x + 1) * CS, y * CS); p.lineTo((x + 1) * CS, (y + 1) * CS);
+        }
+        if (below !== c && w.isLandAt(x, y + 1)) {
+          const p = get(c);
+          p.moveTo(x * CS, (y + 1) * CS); p.lineTo((x + 1) * CS, (y + 1) * CS);
+        }
+      }
+    }
+    e.tint = tc;
+    e.borderPaths = paths;
+  }
+
+  function draw(ctx, w, cam) {
+    const P = S.palette;
+    const e = ensure(w);
+    const lw = (v) => v / Math.sqrt(cam.zoom); // ink keeps near-constant visual weight
+
+    // Culture tint + borders.
+    ctx.globalAlpha = 0.9;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(e.tint, 0, 0, w.W, w.H, 0, 0, w.W * CS, w.H * CS);
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([3, 2.4]);
+    for (const [c, p] of e.borderPaths) {
+      ctx.strokeStyle = P.alpha(P.cultureInk(c), 0.68);
+      ctx.lineWidth = lw(0.9);
+      ctx.stroke(p);
+    }
+    ctx.setLineDash([]);
+
+    // Roads.
+    ctx.strokeStyle = P.alpha(P.ink, 0.42);
+    ctx.lineWidth = lw(0.75);
+    ctx.setLineDash([2.6, 1.9]);
+    ctx.stroke(e.roadsPath);
+    ctx.setLineDash([]);
+
+    // Symbol size: near-constant on screen, clamped in world units.
+    const gs = Math.max(2.6, Math.min(9, 4.2 / Math.pow(cam.zoom, 0.62)));
+
+    // Ruins first (under living settlements).
+    for (const r of w.ruins) drawRuin(ctx, P, (r.x + 0.5) * CS, (r.y + 0.5) * CS, gs * 0.8);
+
+    // Revealed gold veins not yet inside a settlement's glyph.
+    for (const v of w.veins) {
+      if (!v.revealed) continue;
+      drawVein(ctx, P, (v.x + 0.5) * CS, (v.y + 0.5) * CS, gs * 0.55, v.divine);
+    }
+
+    // Dragon lairs.
+    for (const l of w.deadLairs) drawLair(ctx, P, (l.x + 0.5) * CS, (l.y + 0.5) * CS, gs * 0.9, true);
+    for (const d of w.dragons) drawLair(ctx, P, (d.x + 0.5) * CS, (d.y + 0.5) * CS, gs * 0.9, false);
+
+    // Settlements, north to south so glyphs overlap like an engraving.
+    const alive = w.settlements.filter((s) => !s.ruined).sort((a, b) => a.y - b.y);
+    for (const s of alive) {
+      drawSettlement(ctx, P, (s.x + 0.5) * CS, (s.y + 0.5) * CS, gs, s);
+    }
+  }
+
+  function hut(ctx, P, x, y, s, fill) {
+    ctx.beginPath();
+    ctx.rect(x - s / 2, y - s * 0.35, s, s * 0.62);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.62, y - s * 0.32);
+    ctx.lineTo(x, y - s * 0.85);
+    ctx.lineTo(x + s * 0.62, y - s * 0.32);
+    ctx.closePath();
+    ctx.fillStyle = P.alpha(P.ink, 0.25);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawSettlement(ctx, P, x, y, gs, s) {
+    const tier = s.tier;
+    // Paper halo so the glyph reads against any wash.
+    ctx.fillStyle = P.alpha(P.paper, 0.5);
+    ctx.beginPath();
+    ctx.arc(x, y, gs * (0.9 + tier * 0.35), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = P.alpha(P.ink, 0.85);
+    ctx.lineWidth = gs * 0.09;
+    ctx.lineJoin = 'round';
+    const paperFill = P.alpha('#f4ecd8', 0.9);
+
+    if (tier === 0) {
+      hut(ctx, P, x, y, gs * 0.75, paperFill);
+    } else if (tier === 1) {
+      hut(ctx, P, x - gs * 0.38, y + gs * 0.12, gs * 0.66, paperFill);
+      hut(ctx, P, x + gs * 0.38, y - gs * 0.05, gs * 0.72, paperFill);
+    } else if (tier === 2) {
+      ctx.beginPath();
+      ctx.arc(x, y, gs * 0.95, 0, Math.PI * 2);
+      ctx.stroke();
+      hut(ctx, P, x - gs * 0.42, y + gs * 0.2, gs * 0.6, paperFill);
+      hut(ctx, P, x + gs * 0.38, y + gs * 0.14, gs * 0.55, paperFill);
+      tower(ctx, P, x, y - gs * 0.3, gs * 0.55, paperFill);
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, gs * 1.25, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, gs * 0.95, 0, Math.PI * 2);
+      ctx.strokeStyle = P.alpha(P.ink, 0.4);
+      ctx.stroke();
+      ctx.strokeStyle = P.alpha(P.ink, 0.85);
+      hut(ctx, P, x - gs * 0.5, y + gs * 0.3, gs * 0.55, paperFill);
+      hut(ctx, P, x + gs * 0.48, y + gs * 0.22, gs * 0.5, paperFill);
+      tower(ctx, P, x - gs * 0.05, y - gs * 0.25, gs * 0.75, paperFill);
+      // Banner in culture ink.
+      const cc = P.cultureInk(s.culture);
+      ctx.strokeStyle = P.alpha(P.ink, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(x - gs * 0.05, y - gs * 1.05);
+      ctx.lineTo(x - gs * 0.05, y - gs * 1.6);
+      ctx.stroke();
+      ctx.fillStyle = cc;
+      ctx.beginPath();
+      ctx.moveTo(x - gs * 0.05, y - gs * 1.6);
+      ctx.lineTo(x + gs * 0.5, y - gs * 1.45);
+      ctx.lineTo(x - gs * 0.05, y - gs * 1.3);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    if (s.gold) {
+      ctx.fillStyle = P.gold;
+      ctx.beginPath();
+      ctx.arc(x + gs * 0.85, y - gs * 0.85, gs * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = P.alpha(P.ink, 0.6);
+      ctx.lineWidth = gs * 0.06;
+      ctx.stroke();
+    }
+  }
+
+  function tower(ctx, P, x, y, s, fill) {
+    ctx.beginPath();
+    ctx.rect(x - s * 0.28, y - s * 0.9, s * 0.56, s * 1.1);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.38, y - s * 0.9);
+    ctx.lineTo(x, y - s * 1.35);
+    ctx.lineTo(x + s * 0.38, y - s * 0.9);
+    ctx.closePath();
+    ctx.fillStyle = P.alpha(P.ink, 0.3);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function drawRuin(ctx, P, x, y, s) {
+    ctx.strokeStyle = P.alpha(P.ink, 0.45);
+    ctx.lineWidth = s * 0.1;
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.6, y + s * 0.4); ctx.lineTo(x - s * 0.6, y - s * 0.25);
+    ctx.moveTo(x - s * 0.6, y - s * 0.25); ctx.lineTo(x - s * 0.15, y - s * 0.45);
+    ctx.moveTo(x + s * 0.35, y + s * 0.4); ctx.lineTo(x + s * 0.35, y - s * 0.1);
+    ctx.stroke();
+    ctx.fillStyle = P.alpha(P.ink, 0.3);
+    for (let k = 0; k < 4; k++) {
+      ctx.beginPath();
+      ctx.arc(x + (S.rng.hash2(k, x | 0, 9) - 0.5) * s, y + s * 0.45, s * 0.07, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawVein(ctx, P, x, y, s, divine) {
+    ctx.fillStyle = P.goldBright;
+    ctx.strokeStyle = P.alpha(P.ink, 0.55);
+    ctx.lineWidth = s * 0.12;
+    for (const [dx, dy, r] of [[-0.4, 0.25, 0.34], [0.35, 0.15, 0.28], [0, -0.3, 0.3]]) {
+      ctx.beginPath();
+      ctx.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+    if (divine) {
+      ctx.strokeStyle = P.alpha(P.goldBright, 0.9);
+      ctx.lineWidth = s * 0.14;
+      ctx.beginPath();
+      ctx.moveTo(x, y - s * 1.15); ctx.lineTo(x, y - s * 0.55);
+      ctx.moveTo(x - s * 0.3, y - s * 0.85); ctx.lineTo(x + s * 0.3, y - s * 0.85);
+      ctx.stroke();
+    }
+  }
+
+  function drawLair(ctx, P, x, y, s, dead) {
+    const a = dead ? 0.3 : 0.85;
+    ctx.fillStyle = P.alpha('#241a10', dead ? 0.25 : 0.7);
+    ctx.beginPath();
+    ctx.arc(x, y + s * 0.15, s * 0.55, Math.PI, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = P.alpha(P.ink, a);
+    ctx.lineWidth = s * 0.1;
+    ctx.stroke();
+    if (!dead) {
+      // A curl of smoke and one baleful eye.
+      ctx.strokeStyle = P.alpha(P.blood, 0.75);
+      ctx.lineWidth = s * 0.09;
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.35, y - s * 0.1);
+      ctx.quadraticCurveTo(x + s * 0.6, y - s * 0.5, x + s * 0.4, y - s * 0.75);
+      ctx.quadraticCurveTo(x + s * 0.25, y - s * 0.95, x + s * 0.45, y - s * 1.05);
+      ctx.stroke();
+      ctx.fillStyle = P.blood;
+      ctx.beginPath();
+      ctx.arc(x - s * 0.12, y - s * 0.02, s * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  S.features = { draw, ensure, drawSettlement, drawRuin, drawVein, drawLair, CS };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — atlas typography: settlement names, region names in
+   letterspaced small caps, italic water names. Greedy collision layout,
+   redone per frame in screen space (cheap at these counts). */
+(function (S) {
+  'use strict';
+  const CS = 8;
+  const measureCache = new Map();
+
+  function measure(ctx, text, font) {
+    const k = font + '|' + text;
+    let v = measureCache.get(k);
+    if (v === undefined) { ctx.font = font; v = ctx.measureText(text).width; measureCache.set(k, v); }
+    return v;
+  }
+
+  function spacedText(ctx, text, x, y, spacing, fill, halo) {
+    const t = text.toUpperCase();
+    let total = 0;
+    for (const ch of t) total += ctx.measureText(ch).width + spacing;
+    let cx = x - total / 2;
+    for (const ch of t) {
+      if (halo) { ctx.strokeText(ch, cx, y); }
+      ctx.fillStyle = fill;
+      ctx.fillText(ch, cx, y);
+      cx += ctx.measureText(ch).width + spacing;
+    }
+    return total;
+  }
+
+  function draw(ctx, w, cam) {
+    const P = S.palette;
+    const z = cam.zoom;
+    const placed = [];
+    const collide = (x, y, wd, ht) => {
+      for (const r of placed) {
+        if (x < r.x + r.w && x + wd > r.x && y < r.y + r.h && y + ht > r.y) return true;
+      }
+      return false;
+    };
+    const place = (x, y, wd, ht) => placed.push({ x, y, w: wd, h: ht });
+
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.lineJoin = 'round';
+
+    const minZoomForTier = [2.2, 1.1, 0.5, 0];
+    const sizeForTier = [9.5, 10.5, 12.5, 15];
+    const drawSettlementLabel = (s) => {
+      const [sx, sy] = cam.worldToScreen((s.x + 0.5) * CS, (s.y + 0.5) * CS);
+      if (sx < -150 || sy < -30 || sx > cam.vw + 150 || sy > cam.vh + 30) return;
+      const size = sizeForTier[s.tier];
+      const font = `${s.tier >= 2 ? '600 ' : ''}${size}px ${P.SERIF}`;
+      const wd = measure(ctx, s.name, font);
+      const gy = sy + 10 + s.tier * 3.5;
+      if (collide(sx - wd / 2 - 2, gy - size / 2 - 1, wd + 4, size + 2)) return;
+      place(sx - wd / 2 - 2, gy - size / 2 - 1, wd + 4, size + 2);
+      ctx.font = font;
+      ctx.strokeStyle = P.alpha(P.paper, 0.85);
+      ctx.lineWidth = 3.2;
+      ctx.strokeText(s.name, sx - wd / 2, gy);
+      ctx.fillStyle = P.alpha(P.ink, 0.92);
+      ctx.fillText(s.name, sx - wd / 2, gy);
+    };
+    const byPriority = w.settlements.filter((s) => !s.ruined).sort((a, b) => b.tier - a.tier || b.pop - a.pop);
+
+    // Cities and towns claim their space before region names.
+    for (const s of byPriority) {
+      if (s.tier < 2 || z < minZoomForTier[s.tier]) continue;
+      drawSettlementLabel(s);
+    }
+
+    // --- Region names.
+    if (z < 3.2) {
+      for (const r of w.regions) {
+        if (r.kind === 'ocean' && z > 1.4) continue;
+        if ((r.kind === 'sea' || r.kind === 'ocean') && z > 2.2) continue;
+        if (r.kind !== 'sea' && r.kind !== 'ocean' && (z < 0.45 || z > 2.6)) continue;
+        const [sx, sy] = cam.worldToScreen((r.cx + 0.5) * CS, (r.cy + 0.5) * CS);
+        if (sx < -200 || sy < -40 || sx > cam.vw + 200 || sy > cam.vh + 40) continue;
+        const water = r.kind === 'sea' || r.kind === 'ocean';
+        const size = Math.min(21, (water ? 13 : 10.5) + Math.sqrt(r.size) * 0.55);
+        const font = `${water ? 'italic ' : ''}${size}px ${P.SERIF}`;
+        ctx.font = font;
+        const spacing = size * 0.18;
+        const t = r.name.toUpperCase();
+        let total = 0;
+        for (const ch of t) total += ctx.measureText(ch).width + spacing;
+        if (collide(sx - total / 2, sy - size / 2, total, size)) continue;
+        place(sx - total / 2, sy - size / 2, total, size);
+        ctx.strokeStyle = P.alpha(P.paper, 0.75);
+        ctx.lineWidth = 3;
+        spacedText(ctx, r.name, sx, sy, spacing, P.alpha(water ? '#51695f' : P.inkFaded, 0.75), true);
+      }
+    }
+
+    // --- Villages and hamlets fill in what space remains.
+    for (const s of byPriority) {
+      if (s.tier >= 2 || z < minZoomForTier[s.tier]) continue;
+      drawSettlementLabel(s);
+    }
+
+    // --- Ruins, when close.
+    if (z > 1.5) {
+      ctx.font = `italic 9.5px ${P.SERIF}`;
+      for (const r of w.ruins) {
+        const [sx, sy] = cam.worldToScreen((r.x + 0.5) * CS, (r.y + 0.5) * CS);
+        if (sx < -100 || sy < -20 || sx > cam.vw + 100 || sy > cam.vh + 20) continue;
+        const label = r.alt ? r.alt : 'ruins of ' + r.name;
+        const wd = measure(ctx, label, `italic 9.5px ${P.SERIF}`);
+        if (collide(sx - wd / 2, sy + 6, wd, 10)) continue;
+        place(sx - wd / 2, sy + 6, wd, 10);
+        ctx.strokeStyle = P.alpha(P.paper, 0.8);
+        ctx.lineWidth = 2.6;
+        ctx.strokeText(label, sx - wd / 2, sy + 11);
+        ctx.fillStyle = P.alpha(P.inkFaded, 0.85);
+        ctx.fillText(label, sx - wd / 2, sy + 11);
+      }
+    }
+  }
+
+  S.labels = { draw };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — the living layer: storm spirals, gold glints, dragon
+   menace, event pings, migration arrows. Drawn fresh every frame. */
+(function (S) {
+  'use strict';
+  const CS = 8;
+  const pings = [];
+  const arrows = [];
+  let reduced = false;
+  if (typeof matchMedia !== 'undefined') {
+    try { reduced = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { /* headless */ }
+  }
+
+  function addPing(x, y, tone) {
+    pings.push({ x: (x + 0.5) * CS, y: (y + 0.5) * CS, t: 0, tone: tone || 'ink' });
+    if (pings.length > 24) pings.shift();
+  }
+  function addArrow(fx, fy, tx, ty, tone) {
+    arrows.push({ fx: (fx + 0.5) * CS, fy: (fy + 0.5) * CS, tx: (tx + 0.5) * CS, ty: (ty + 0.5) * CS, t: 0, tone: tone || 'ink' });
+    if (arrows.length > 12) arrows.shift();
+  }
+
+  function toneColor(P, tone) {
+    return tone === 'god' ? P.gold : tone === 'doom' ? P.blood : P.ink;
+  }
+
+  function draw(ctx, w, cam, t, dt) {
+    const P = S.palette;
+    const lw = (v) => v / Math.sqrt(cam.zoom);
+
+    // Storm spirals + rain.
+    for (const z of w.storms) {
+      const cx = (z.x + 0.5) * CS, cy = (z.y + 0.5) * CS, R = z.r * CS;
+      ctx.strokeStyle = P.alpha(P.stormGray, 0.55);
+      ctx.lineWidth = lw(1.1);
+      const spin = reduced ? 0 : t * 0.45;
+      for (let k = 0; k < 3; k++) {
+        const a0 = spin + k * (Math.PI * 2 / 3);
+        ctx.beginPath();
+        for (let u = 0; u <= 1; u += 0.08) {
+          const ang = a0 + u * 2.6;
+          const rr = R * (0.25 + u * 0.65);
+          const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr * 0.8;
+          if (u === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      ctx.strokeStyle = P.alpha(P.stormGray, 0.5);
+      ctx.lineWidth = lw(0.8);
+      for (let k = 0; k < 7; k++) {
+        const hx = S.rng.hash2(k, z.x, 41), hy = S.rng.hash2(z.y, k, 42);
+        const ph = reduced ? 0.5 : (t * 1.6 + hx * 7) % 1;
+        if (ph > 0.75) continue;
+        const px = cx + (hx - 0.5) * R * 1.7, py = cy + (hy - 0.5) * R * 1.4 + ph * 6;
+        ctx.beginPath();
+        ctx.moveTo(px, py);
+        ctx.lineTo(px - 1.6, py + 4);
+        ctx.stroke();
+      }
+    }
+
+    // Blessing motes.
+    for (const z of w.blesses) {
+      const cx = (z.x + 0.5) * CS, cy = (z.y + 0.5) * CS, R = z.r * CS;
+      ctx.fillStyle = P.alpha(P.goldBright, 0.7);
+      for (let k = 0; k < 6; k++) {
+        const hx = S.rng.hash2(k, z.x, 43) - 0.5, hy = S.rng.hash2(z.y, k, 44) - 0.5;
+        const drift = reduced ? 0 : Math.sin(t * 0.9 + k * 1.7) * 2.5;
+        const px = cx + hx * R * 1.5, py = cy + hy * R * 1.2 + drift;
+        const a = reduced ? 0.5 : 0.35 + 0.35 * Math.sin(t * 1.3 + k * 2.1);
+        if (a <= 0.05) continue;
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.arc(px, py, lw(1.1), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Gold glints on revealed veins.
+    for (const v of w.veins) {
+      if (!v.revealed) continue;
+      const a = reduced ? 0.5 : Math.max(0, Math.sin(t * 2 + S.rng.hash2(v.x, v.y, 45) * 6.28)) * 0.8;
+      if (a < 0.08) continue;
+      const cx = (v.x + 0.5) * CS, cy = (v.y + 0.1) * CS;
+      const s = lw(3);
+      ctx.strokeStyle = P.alpha(P.goldBright, a);
+      ctx.lineWidth = lw(0.7);
+      ctx.beginPath();
+      ctx.moveTo(cx - s, cy); ctx.lineTo(cx + s, cy);
+      ctx.moveTo(cx, cy - s); ctx.lineTo(cx, cy + s);
+      ctx.stroke();
+    }
+
+    // Dragon menace rings.
+    for (const d of w.dragons) {
+      const cx = (d.x + 0.5) * CS, cy = (d.y + 0.5) * CS;
+      const pulse = reduced ? 0.09 : 0.06 + 0.04 * Math.sin(t * 1.1);
+      ctx.strokeStyle = P.alpha(P.blood, pulse * 3);
+      ctx.fillStyle = P.alpha(P.blood, pulse * 0.55);
+      ctx.lineWidth = lw(1);
+      ctx.beginPath();
+      ctx.arc(cx, cy, 8 * CS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Pings.
+    for (let i = pings.length - 1; i >= 0; i--) {
+      const p = pings[i];
+      p.t += dt;
+      if (p.t > 1.6) { pings.splice(i, 1); continue; }
+      const u = p.t / 1.6;
+      const col = toneColor(P, p.tone);
+      ctx.strokeStyle = P.alpha(col, (1 - u) * 0.85);
+      ctx.lineWidth = lw(1.4);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3 + u * 26 / Math.sqrt(cam.zoom), 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = P.alpha(col, (1 - u) * 0.45);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3 + u * 40 / Math.sqrt(cam.zoom), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Migration / raid arrows: draw in, then fade.
+    for (let i = arrows.length - 1; i >= 0; i--) {
+      const a = arrows[i];
+      a.t += dt;
+      if (a.t > 2.4) { arrows.splice(i, 1); continue; }
+      const drawU = Math.min(1, a.t / 0.9);
+      const fade = a.t < 1.4 ? 1 : 1 - (a.t - 1.4) / 1;
+      const col = toneColor(P, a.tone);
+      const mx = (a.fx + a.tx) / 2 + (a.fy - a.ty) * 0.25;
+      const my = (a.fy + a.ty) / 2 + (a.tx - a.fx) * 0.25;
+      ctx.strokeStyle = P.alpha(col, 0.65 * fade);
+      ctx.lineWidth = lw(1.1);
+      ctx.setLineDash([3, 2.4]);
+      ctx.beginPath();
+      ctx.moveTo(a.fx, a.fy);
+      // Trace the quadratic partially for the draw-in.
+      const steps = 24;
+      let px = a.fx, py = a.fy;
+      for (let k = 1; k <= steps * drawU; k++) {
+        const u = k / steps;
+        px = (1 - u) * (1 - u) * a.fx + 2 * (1 - u) * u * mx + u * u * a.tx;
+        py = (1 - u) * (1 - u) * a.fy + 2 * (1 - u) * u * my + u * u * a.ty;
+        ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      if (drawU >= 1) {
+        const ang = Math.atan2(a.ty - my, a.tx - mx);
+        ctx.fillStyle = P.alpha(col, 0.7 * fade);
+        ctx.beginPath();
+        ctx.moveTo(a.tx, a.ty);
+        ctx.lineTo(a.tx - Math.cos(ang - 0.45) * lw(5), a.ty - Math.sin(ang - 0.45) * lw(5));
+        ctx.lineTo(a.tx - Math.cos(ang + 0.45) * lw(5), a.ty - Math.sin(ang + 0.45) * lw(5));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  }
+
+  S.effects = { draw, addPing, addArrow };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — frame orchestration: terrain plate → borders → roads →
+   features → effects → labels → atlas furniture (plate frame, compass,
+   scale bar). */
+(function (S) {
+  'use strict';
+  const CS = 8;
+
+  function create(canvas, world) {
+    const ctx = canvas.getContext('2d');
+    const cam = new S.Camera(world.W * CS, world.H * CS);
+    const R = { canvas, ctx, cam, world, time: 0 };
+
+    R.resize = () => {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const vw = canvas.clientWidth, vh = canvas.clientHeight;
+      canvas.width = vw * dpr; canvas.height = vh * dpr;
+      cam.resize(vw, vh, dpr);
+    };
+
+    R.setWorld = (w) => {
+      R.world = w;
+      cam.ww = w.W * CS; cam.wh = w.H * CS;
+      R.resize();
+      cam.x = cam.tx = cam.ww / 2;
+      cam.y = cam.ty = cam.wh / 2;
+      cam.zoom = cam.tzoom = cam.minZoom * 1.02;
+    };
+
+    R.draw = (dt) => {
+      const w = R.world, P = S.palette;
+      R.time += dt;
+      cam.update(dt);
+
+      const dpr = cam.dpr;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = P.paper;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Subtle page grain outside the plate.
+      const t = S.terrain.get(w);
+      cam.apply(ctx);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(t.composite || t.base.canvas, 0, 0,
+        w.W * CS * S.terrain.SS, w.H * CS * S.terrain.SS,
+        0, 0, w.W * CS, w.H * CS);
+
+      S.features.draw(ctx, w, cam);
+      S.effects.draw(ctx, w, cam, R.time, dt);
+
+      // Screen-space passes.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      S.labels.draw(ctx, w, cam);
+      furniture(ctx, w, cam, P);
+    };
+
+    return R;
+  }
+
+  function furniture(ctx, w, cam, P) {
+    // Plate frame: double rule around the map rectangle.
+    const [x0, y0] = cam.worldToScreen(0, 0);
+    const [x1, y1] = cam.worldToScreen(w.W * CS, w.H * CS);
+    ctx.strokeStyle = P.alpha(P.ink, 0.8);
+    ctx.lineWidth = 1.6;
+    ctx.strokeRect(x0 - 8, y0 - 8, (x1 - x0) + 16, (y1 - y0) + 16);
+    ctx.lineWidth = 0.7;
+    ctx.strokeRect(x0 - 3.5, y0 - 3.5, (x1 - x0) + 7, (y1 - y0) + 7);
+
+    // Compass rose, bottom-right of the viewport.
+    const cx = cam.vw - 64, cy = cam.vh - 72, r = 24;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.strokeStyle = P.alpha(P.ink, 0.75);
+    ctx.fillStyle = P.alpha(P.paper, 0.55);
+    ctx.beginPath(); ctx.arc(0, 0, r + 7, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2); ctx.stroke();
+    for (let k = 0; k < 8; k++) {
+      const long = k % 2 === 0;
+      const ang = k * Math.PI / 4 - Math.PI / 2;
+      const len = long ? r : r * 0.5;
+      const half = long ? 3.2 : 2;
+      ctx.fillStyle = P.alpha(P.ink, long ? 0.85 : 0.5);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang) * len, Math.sin(ang) * len);
+      ctx.lineTo(Math.cos(ang + Math.PI / 2) * half, Math.sin(ang + Math.PI / 2) * half);
+      ctx.lineTo(Math.cos(ang + Math.PI) * half * 1.4, Math.sin(ang + Math.PI) * half * 1.4);
+      ctx.lineTo(Math.cos(ang - Math.PI / 2) * half, Math.sin(ang - Math.PI / 2) * half);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.font = `600 10px ${P.SERIF}`;
+    ctx.fillStyle = P.alpha(P.ink, 0.9);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('N', 0, -r - 12);
+    ctx.restore();
+
+    // Scale bar, bottom-left: 20 cells ≈ 200 leagues.
+    const segWorld = 20 * CS;
+    const segPx = segWorld * cam.zoom;
+    if (segPx > 40 && segPx < 400) {
+      const bx = 20, by = cam.vh - 26;
+      ctx.strokeStyle = P.alpha(P.ink, 0.8);
+      ctx.fillStyle = P.alpha(P.ink, 0.8);
+      ctx.lineWidth = 1;
+      for (let k = 0; k < 4; k++) {
+        const sx = bx + (segPx / 4) * k;
+        if (k % 2 === 0) ctx.fillRect(sx, by, segPx / 4, 4);
+        else ctx.strokeRect(sx, by, segPx / 4, 4);
+      }
+      ctx.font = `9.5px ${S.palette.SERIF}`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      ctx.fillText('200 leagues', bx, by - 3);
+    }
+    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  }
+
+  S.renderer = { create, CS };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — UI chrome: atlas margins around the living map.
+   Cartouche title bar, wax-seal power rail, ledger-style chronicle,
+   legend, tooltip, toast, and the first-run intro. */
+(function (S) {
+  'use strict';
+
+  const ICONS = {
+    inspect: '<svg viewBox="0 0 24 24"><path d="M10 4v9m0-9c0-1.2 1.8-1.2 1.8 0v8m0-7.4c0-1.2 1.8-1.2 1.8 0v7.6m0-6.4c0-1.2 1.8-1.2 1.8 0V15c0 3.5-2 5.5-5.2 5.5-2.6 0-3.8-1.3-4.8-3.2L4 14.6c-.6-1.1.8-2.1 1.7-1.2L7 14.8V6.2C7 5 8.4 5 8.6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    gold: '<svg viewBox="0 0 24 24"><circle cx="8.5" cy="15.5" r="3" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="16" r="2.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="12" cy="10.5" r="2.7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 3.5v3M10.6 5h2.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    curse: '<svg viewBox="0 0 24 24"><path d="M6.5 13a4 4 0 1 1 .6-7.9A5 5 0 0 1 16.8 6 3.5 3.5 0 0 1 17 13z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12.5 14.5 10 18h3l-2.2 3.5M7 15.5l-1 2M16.5 15.5l-1 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>',
+    bless: '<svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v2M17 4.5l-1.4 1.4M21 9.5h-2M7 4.5l1.4 1.4M3 9.5h2M12 15.5c0 2.5-1.5 3-1.5 5M12 15.5c0 2.5 1.5 3 1.5 5M12 15.5V21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>',
+    export: '<svg viewBox="0 0 24 24"><path d="M12 4v10m0 0 -3.5-3.5M12 14l3.5-3.5M5 17v2.5h14V17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    pause: '<svg viewBox="0 0 24 24"><path d="M8.5 5.5v13M15.5 5.5v13" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" fill="currentColor"/></svg>',
+  };
+
+  const POWERS = [
+    { id: 'inspect', label: 'Inspect', hint: 'The open hand. Hover to read the world; click to mark a place.' },
+    { id: 'gold', label: 'Seed Gold', hint: 'Bloom a vein of gold in mountains or hills. Miners will come. So might other things.' },
+    { id: 'curse', label: 'Curse Skies', hint: 'An unending storm, five leagues wide. Nothing will grow beneath it.' },
+    { id: 'bless', label: 'Bless Land', hint: 'Gentle rain and kind soil. Settlers will find it.' },
+  ];
+
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  function build(app) {
+    const root = document.getElementById('app');
+
+    // --- Top bar.
+    const bar = el('header', '', `
+      <div class="cartouche">
+        <h1>Slate</h1><span class="sub">The Living Atlas</span>
+      </div>
+      <div id="date" aria-live="off"><span id="date-year">Year 0</span><span id="date-season">Thaw</span></div>
+      <div id="timectl" role="group" aria-label="Time controls">
+        <button id="btn-pause" class="ctl icon" title="Pause / resume (Space)">${ICONS.pause}</button>
+        <span class="speeds">
+          <button class="ctl speed active" data-speed="1" title="One year per second (1)">I</button>
+          <button class="ctl speed" data-speed="6" title="Six years per second (2)">II</button>
+          <button class="ctl speed" data-speed="24" title="A generation per second (3)">III</button>
+        </span>
+        <button id="btn-new" class="ctl text" title="Generate a fresh world">New world</button>
+      </div>`);
+    bar.id = 'topbar';
+    root.appendChild(bar);
+
+    // --- Powers rail.
+    const rail = el('nav', '', '');
+    rail.id = 'powers';
+    rail.setAttribute('aria-label', 'Divine powers');
+    for (const p of POWERS) {
+      const b = el('button', 'seal' + (p.id === 'inspect' ? ' active' : ''),
+        `${ICONS[p.id]}<span class="seal-label">${p.label}</span>`);
+      b.dataset.power = p.id;
+      b.title = p.hint;
+      b.addEventListener('click', () => setPower(app, p.id));
+      rail.appendChild(b);
+    }
+    root.appendChild(rail);
+
+    // --- Chronicle ledger.
+    const chron = el('aside', '', `
+      <header>
+        <h2>Chronicle</h2>
+        <select id="chron-filter" title="Which events to show">
+          <option value="1">All</option>
+          <option value="2" selected>Notable</option>
+          <option value="3">Major</option>
+        </select>
+        <button id="btn-export" class="ctl icon" title="Download the full chronicle as Markdown">${ICONS.export}</button>
+        <button id="btn-chron-toggle" class="ctl icon" title="Collapse the chronicle" aria-expanded="true">›</button>
+      </header>
+      <ol id="chron-entries" data-min="2"></ol>`);
+    chron.id = 'chronicle';
+    root.appendChild(chron);
+    chron.querySelector('#chron-filter').addEventListener('change', (ev) => {
+      chron.querySelector('#chron-entries').dataset.min = ev.target.value;
+    });
+    chron.querySelector('#btn-chron-toggle').addEventListener('click', () => {
+      const collapsed = chron.classList.toggle('collapsed');
+      const btn = chron.querySelector('#btn-chron-toggle');
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.title = collapsed ? 'Open the chronicle' : 'Collapse the chronicle';
+    });
+    chron.querySelector('#btn-export').addEventListener('click', () => exportChronicle(app));
+
+    // --- Legend.
+    const legend = el('details', '', `<summary>Legend</summary><div id="legend-body"></div>
+      <p class="hint">Drag to pan · scroll to zoom · pick a power, then click the land</p>`);
+    legend.id = 'legend';
+    if (window.innerWidth > 900) legend.open = true;
+    root.appendChild(legend);
+    buildLegend(legend.querySelector('#legend-body'));
+
+    // --- Tooltip & toast.
+    const tip = el('div', '', ''); tip.id = 'tooltip'; tip.hidden = true; root.appendChild(tip);
+    const toastEl = el('div', '', ''); toastEl.id = 'toast'; toastEl.hidden = true; root.appendChild(toastEl);
+
+    // --- Intro.
+    const intro = el('div', '', `
+      <div class="card">
+        <p class="over">A god-simulation prototype · Phase 0</p>
+        <h1>Slate</h1>
+        <p class="tag">The Living Atlas</p>
+        <p>You are the god of an empty year. The world below will live, spread,
+           and remember — with you or without you.</p>
+        <p>Seed gold in the mountains and watch boomtowns rise. Curse the skies
+           and watch the roads empty. Everything is written down.</p>
+        <div class="row seedrow">
+          <label for="intro-seed">World seed</label>
+          <input id="intro-seed" inputmode="numeric" value="">
+          <button id="intro-reroll" class="ctl text" title="Random seed">Reroll</button>
+        </div>
+        <div class="row">
+          <button id="btn-watch" class="big">Only watch</button>
+          <button id="btn-shape" class="big primary">Begin</button>
+        </div>
+      </div>`);
+    intro.id = 'intro';
+    root.appendChild(intro);
+
+    app.ui = {
+      bar, rail, chron, tip, toastEl, intro,
+      entriesEl: chron.querySelector('#chron-entries'),
+      yearEl: bar.querySelector('#date-year'),
+      seasonEl: bar.querySelector('#date-season'),
+      toastTimer: 0,
+    };
+    return app.ui;
+  }
+
+  function setPower(app, id) {
+    app.power = id;
+    document.querySelectorAll('#powers .seal').forEach((b) => {
+      b.classList.toggle('active', b.dataset.power === id);
+    });
+    document.getElementById('map').style.cursor = id === 'inspect' ? 'grab' : 'crosshair';
+  }
+
+  function buildLegend(body) {
+    const P = S.palette;
+    const rows = [
+      ['hamlet', (ctx) => S.features.drawSettlement(ctx, P, 11, 10, 4.5, { tier: 0, gold: false, culture: 0 })],
+      ['village', (ctx) => S.features.drawSettlement(ctx, P, 11, 10, 4.5, { tier: 1, gold: false, culture: 0 })],
+      ['town', (ctx) => S.features.drawSettlement(ctx, P, 11, 11, 4.2, { tier: 2, gold: false, culture: 0 })],
+      ['city', (ctx) => S.features.drawSettlement(ctx, P, 11, 12, 4, { tier: 3, gold: false, culture: 0 })],
+      ['ruins', (ctx) => S.features.drawRuin(ctx, P, 11, 10, 5)],
+      ['gold vein', (ctx) => S.features.drawVein(ctx, P, 11, 11, 3.4, true)],
+      ['dragon lair', (ctx) => S.features.drawLair(ctx, P, 11, 10, 5, false)],
+    ];
+    for (const [name, fn] of rows) {
+      const row = document.createElement('div');
+      row.className = 'legend-row';
+      const c = document.createElement('canvas');
+      c.width = 44; c.height = 40; c.style.width = '22px'; c.style.height = '20px';
+      const ctx = c.getContext('2d');
+      ctx.scale(2, 2);
+      fn(ctx);
+      row.appendChild(c);
+      const label = document.createElement('span');
+      label.textContent = name;
+      row.appendChild(label);
+      body.appendChild(row);
+    }
+  }
+
+  function addEntry(app, e) {
+    const ui = app.ui;
+    const li = document.createElement('li');
+    li.dataset.imp = e.imp;
+    li.className = 'tone-' + e.tone;
+    li.innerHTML = `<span class="yr">${e.year}</span><p>${e.tone === 'god' ? '✦ ' : e.tone === 'doom' ? '† ' : ''}${e.text}</p>`;
+    if (e.x !== undefined) {
+      li.tabIndex = 0;
+      li.title = 'Show on the map';
+      const go = () => {
+        app.renderer.cam.flyTo((e.x + 0.5) * 8, (e.y + 0.5) * 8, Math.max(app.renderer.cam.zoom, 1.6));
+        S.effects.addPing(e.x, e.y, e.tone);
+      };
+      li.addEventListener('click', go);
+      li.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') go(); });
+    }
+    ui.entriesEl.prepend(li);
+    while (ui.entriesEl.children.length > 400) ui.entriesEl.lastChild.remove();
+  }
+
+  function setDate(app) {
+    const w = app.world;
+    app.ui.yearEl.textContent = 'Year ' + w.year;
+    app.ui.seasonEl.textContent = w.monthName();
+  }
+
+  function toast(app, msg, tone) {
+    const t = app.ui.toastEl;
+    t.textContent = msg;
+    t.className = tone ? 'tone-' + tone : '';
+    t.hidden = false;
+    clearTimeout(app.ui.toastTimer);
+    app.ui.toastTimer = setTimeout(() => { t.hidden = true; }, 2800);
+  }
+
+  function tooltip(app, html, px, py) {
+    const t = app.ui.tip;
+    if (!html) { t.hidden = true; return; }
+    t.innerHTML = html;
+    t.hidden = false;
+    const pad = 14;
+    const r = t.getBoundingClientRect();
+    let x = px + pad, y = py + pad;
+    if (x + r.width > window.innerWidth - 8) x = px - r.width - pad;
+    if (y + r.height > window.innerHeight - 8) y = py - r.height - pad;
+    t.style.left = x + 'px';
+    t.style.top = y + 'px';
+  }
+
+  function exportChronicle(app) {
+    const md = S.chronicle.toMarkdown(app.world);
+    const blob = new Blob([md], { type: 'text/markdown' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `slate-chronicle-seed${app.world.seed}-year${app.world.year}.md`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast(app, 'The chronicle has been set down — ' + app.world.chronicle.events.length + ' entries.');
+  }
+
+  function updatePauseButton(app) {
+    document.getElementById('btn-pause').innerHTML = app.paused ? ICONS.play : ICONS.pause;
+  }
+
+  S.ui = { build, addEntry, setDate, toast, tooltip, setPower, updatePauseButton, exportChronicle };
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+<script>
+/* SLATE Phase 0 — boot, input, and the main loop. */
+(function (S) {
+  'use strict';
+  const CS = 8;
+
+  const app = {
+    world: null, renderer: null, ui: null,
+    speed: 6, paused: true, power: 'inspect',
+  };
+  S.app = app;
+
+  function params() {
+    const q = new URLSearchParams(location.search);
+    return {
+      seed: q.get('seed'),
+      run: parseInt(q.get('run') || '0', 10),
+      nointro: q.has('run') || q.has('nointro'),
+      speed: parseFloat(q.get('speed') || '0'),
+    };
+  }
+
+  function boot(seed) {
+    const w = S.world.create(seed);
+    app.world = w;
+    w.onEvent = (e) => {
+      S.ui.addEntry(app, e);
+      const slowEnough = app.speed <= 6;
+      if (e.imp >= 3 || (e.imp === 2 && slowEnough && !app.paused)) {
+        if (e.x !== undefined) S.effects.addPing(e.x, e.y, e.tone);
+      }
+      if (e.fx !== undefined && e.x !== undefined && (slowEnough || e.imp >= 3)) {
+        S.effects.addArrow(e.fx, e.fy, e.x, e.y, e.tone === 'doom' ? 'doom' : 'ink');
+      }
+    };
+    // Backfill chronicle panel with founding events.
+    for (const e of w.chronicle.events) S.ui.addEntry(app, e);
+    app.renderer.setWorld(w);
+    S.ui.setDate(app);
+  }
+
+  function newWorld(seed) {
+    document.getElementById('chron-entries').innerHTML = '';
+    boot(seed);
+    S.ui.toast(app, 'A new world · seed ' + seed);
+  }
+
+  // --- fixed-step sim scheduler ---
+  let acc = 0;
+  function simStep(dt) {
+    if (app.paused) return;
+    acc += dt * app.speed * 12; // ticks (months) per second
+    let n = Math.min(60, Math.floor(acc));
+    acc -= Math.floor(acc);
+    while (n-- > 0) S.sim.tick(app.world);
+  }
+
+  // --- input ---
+  function wireInput(canvas) {
+    const cam = () => app.renderer.cam;
+    let dragging = false, moved = 0, lastX = 0, lastY = 0;
+    const pointers = new Map();
+    let pinchDist = 0;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      }
+      dragging = true; moved = 0;
+      lastX = e.clientX; lastY = e.clientY;
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (pointers.has(e.pointerId)) pointers.set(e.pointerId, [e.clientX, e.clientY]);
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pinchDist > 0) {
+          cam().zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / pinchDist);
+        }
+        pinchDist = d;
+        moved = 99;
+        return;
+      }
+      if (dragging) {
+        const dx = e.clientX - lastX, dy = e.clientY - lastY;
+        moved += Math.abs(dx) + Math.abs(dy);
+        cam().panBy(dx, dy);
+        lastX = e.clientX; lastY = e.clientY;
+        S.ui.tooltip(app, null);
+      } else {
+        hover(e.clientX, e.clientY);
+      }
+    });
+    const endPointer = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchDist = 0;
+      if (dragging && moved < 5) click(e.clientX, e.clientY);
+      dragging = pointers.size > 0;
+    };
+    canvas.addEventListener('pointerup', endPointer);
+    canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('pointerleave', () => S.ui.tooltip(app, null));
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      cam().zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0014));
+    }, { passive: false });
+
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+      if (e.code === 'Space') { e.preventDefault(); togglePause(); }
+      else if (e.key === '1' || e.key === '2' || e.key === '3') setSpeed([1, 6, 24][+e.key - 1]);
+      else if (e.key === 'i') S.ui.setPower(app, 'inspect');
+      else if (e.key === 'g') S.ui.setPower(app, 'gold');
+      else if (e.key === 'c') S.ui.setPower(app, 'curse');
+      else if (e.key === 'b') S.ui.setPower(app, 'bless');
+    });
+  }
+
+  function worldCell(px, py) {
+    const [wx, wy] = app.renderer.cam.screenToWorld(px, py);
+    return [wx / CS - 0.5, wy / CS - 0.5];
+  }
+
+  function click(px, py) {
+    const [cx, cy] = worldCell(px, py);
+    const w = app.world;
+    if (app.power === 'inspect') {
+      const s = w.settlementNear(Math.round(cx), Math.round(cy), 2);
+      if (s) S.effects.addPing(s.x, s.y, 'ink');
+      return;
+    }
+    const fn = app.power === 'gold' ? S.powers.seedGold
+      : app.power === 'curse' ? S.powers.curseWeather
+      : S.powers.blessLand;
+    const res = fn(w, cx, cy);
+    if (!res.ok) {
+      S.ui.toast(app, res.msg, 'doom');
+    } else {
+      S.effects.addPing(res.x, res.y, app.power === 'curse' ? 'doom' : 'god');
+      if (app.paused) togglePause(); // an act of god sets time moving
+    }
+  }
+
+  function hover(px, py) {
+    const w = app.world;
+    if (!w) return;
+    const [fx, fy] = worldCell(px, py);
+    const x = Math.round(fx), y = Math.round(fy);
+    if (!w.inB(x, y)) { S.ui.tooltip(app, null); return; }
+    const P = S.palette;
+    const s = w.settlementNear(x, y, 1.6);
+    if (s) {
+      const c = S.CULTURES[s.culture];
+      const flags = [];
+      if (s.gold) flags.push('<em class="f-gold">gold-blessed</em>');
+      if (w.stormAt(s.x, s.y)) flags.push('<em class="f-doom">storm-cursed</em>');
+      if (w.blessAt(s.x, s.y)) flags.push('<em class="f-god">favored</em>');
+      for (const d of w.dragons) {
+        if ((s.x - d.x) ** 2 + (s.y - d.y) ** 2 <= 64) { flags.push('<em class="f-doom">in the wyrm’s shadow</em>'); break; }
+      }
+      S.ui.tooltip(app,
+        `<h3>${s.name}</h3>
+         <p>${w.tierName(s.tier)} of the ${c.name} · pop ~${Math.round(s.pop / 10) * 10}</p>
+         <p>founded Year ${s.foundedYear}${flags.length ? ' · ' + flags.join(' · ') : ''}</p>`,
+        px, py);
+      return;
+    }
+    for (const r of w.ruins) {
+      if ((r.x - x) ** 2 + (r.y - y) ** 2 <= 2.6) {
+        S.ui.tooltip(app, `<h3>${r.alt || 'Ruins of ' + r.name}</h3>
+          <p>${r.alt ? 'once ' + r.name + ' · ' : ''}abandoned Year ${r.year}${r.cause === 'dragon' ? ' · dragonfire' : r.cause === 'storm' ? ' · the endless storm' : ''}</p>`, px, py);
+        return;
+      }
+    }
+    for (const d of w.dragons) {
+      if ((d.x - x) ** 2 + (d.y - y) ** 2 <= 2.6) {
+        S.ui.tooltip(app, `<h3>${d.name}</h3><p>nested here since Year ${d.bornYear}</p>`, px, py);
+        return;
+      }
+    }
+    const i = w.idx(x, y);
+    const biome = P.BIOME_NAMES[w.biome[i]];
+    const region = w.regionOf[i] >= 0 ? w.regions[w.regionOf[i]].name : null;
+    const vein = w.goldVeinNear(x, y, 1.5, true);
+    let extra = '';
+    if (vein) extra = '<p><em class="f-gold">a gold vein glitters here</em></p>';
+    else if (w.stormAt(x, y)) extra = '<p><em class="f-doom">cursed skies</em></p>';
+    else if (w.blessAt(x, y)) extra = '<p><em class="f-god">blessed ground</em></p>';
+    else if (w.isLandAt(x, y)) {
+      const f = w.fert[i];
+      extra = `<p>${f > 0.8 ? 'rich soil' : f > 0.45 ? 'fair soil' : 'thin soil'}</p>`;
+    }
+    S.ui.tooltip(app, `<h3>${region || (w.isLandAt(x, y) ? 'Open country' : 'Open water')}</h3><p>${biome}</p>${extra}`, px, py);
+  }
+
+  function togglePause() {
+    app.paused = !app.paused;
+    S.ui.updatePauseButton(app);
+  }
+  function setSpeed(v) {
+    app.speed = v;
+    document.querySelectorAll('#timectl .speed').forEach((b) => {
+      b.classList.toggle('active', +b.dataset.speed === v);
+    });
+    if (app.paused) togglePause();
+  }
+
+  // --- fast-forward for screenshots / sharing (?run=400) ---
+  function autorun(years, done) {
+    const w = app.world;
+    const overlay = document.createElement('div');
+    overlay.id = 'ffwd';
+    overlay.textContent = 'The chronicle is being written…';
+    document.getElementById('app').appendChild(overlay);
+    const target = years;
+    (function chunk() {
+      const step = Math.min(25, target - w.year);
+      S.sim.runYears(w, step);
+      overlay.textContent = `The chronicle is being written… Year ${w.year}`;
+      S.ui.setDate(app);
+      if (w.year < target) requestAnimationFrame(chunk);
+      else { overlay.remove(); done(); }
+    })();
+  }
+
+  function start() {
+    const q = params();
+    const canvas = document.getElementById('map');
+    app.renderer = S.renderer.create(canvas, { W: 192, H: 120 });
+    S.ui.build(app);
+    wireInput(canvas);
+    window.addEventListener('resize', () => app.renderer.resize());
+
+    const seed = q.seed !== null ? q.seed : (Math.random() * 100000 | 0);
+    boot(seed);
+
+    // Intro wiring.
+    const intro = document.getElementById('intro');
+    const seedInput = document.getElementById('intro-seed');
+    seedInput.value = seed;
+    document.getElementById('intro-reroll').addEventListener('click', () => {
+      seedInput.value = Math.random() * 100000 | 0;
+    });
+    const dismiss = (watch) => {
+      const sv = seedInput.value.trim();
+      if (sv && String(app.world.seed) !== sv) newWorld(sv);
+      intro.remove();
+      setSpeed(watch ? 24 : 1);
+    };
+    document.getElementById('btn-watch').addEventListener('click', () => dismiss(true));
+    document.getElementById('btn-shape').addEventListener('click', () => dismiss(false));
+
+    document.getElementById('btn-pause').addEventListener('click', togglePause);
+    document.querySelectorAll('#timectl .speed').forEach((b) => {
+      b.addEventListener('click', () => setSpeed(+b.dataset.speed));
+    });
+    document.getElementById('btn-new').addEventListener('click', () => {
+      newWorld(Math.random() * 100000 | 0);
+    });
+
+    if (q.nointro) intro.remove();
+    if (q.speed) setSpeed(q.speed);
+
+    // Main loop.
+    let last = performance.now();
+    function frame(now) {
+      const dt = Math.min(0.1, (now - last) / 1000);
+      last = now;
+      simStep(dt);
+      if (app.world.tick !== app._shownTick) {
+        app._shownTick = app.world.tick;
+        S.ui.setDate(app);
+      }
+      app.renderer.draw(dt);
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+
+    if (q.run > 0) {
+      autorun(q.run, () => {
+        app.paused = true;
+        S.ui.updatePauseButton(app);
+        requestAnimationFrame(() => requestAnimationFrame(() => { window.__slateReady = true; }));
+      });
+    } else {
+      window.__slateReady = true;
+    }
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+    else start();
+  }
+})(typeof SLATE !== 'undefined' ? SLATE : (globalThis.SLATE = {}));
+
+</script>
+</body>
+</html>
