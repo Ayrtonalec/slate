@@ -18,13 +18,23 @@ namespace Slate.Game
         private readonly Dictionary<int, Vector3> _visualPos = new Dictionary<int, Vector3>();
         private readonly List<int> _stale = new List<int>();
 
+        private Mesh _hullModel; // Blender-lofted hull (Models/nature/ship_hull), 2 submeshes
+        private Material _deckMat;
+
         public void Init(WorldRunner runner)
         {
             _runner = runner;
             _hull = ProceduralMeshes.Box();
+            var go = Resources.Load<GameObject>("Models/nature/ship_hull");
+            if (go != null)
+            {
+                var mf = go.GetComponentInChildren<MeshFilter>();
+                if (mf != null) _hullModel = mf.sharedMesh;
+            }
             _mast = ProceduralMeshes.Box();
             _sail = ProceduralMeshes.FlagCloth(8, 6);
             _hullMat = SettlementRenderer.MakeLit(new Color(0.28f, 0.21f, 0.15f));
+            _deckMat = SettlementRenderer.MakeLit(new Color(0.48f, 0.38f, 0.27f));
             _mastMat = SettlementRenderer.MakeLit(new Color(0.35f, 0.27f, 0.19f));
             _sailMats = new Material[4];
             for (int c = 0; c < 4; c++)
@@ -72,7 +82,21 @@ namespace Slate.Game
                     worldBounds = new Bounds(pos, Vector3.one * 24),
                     shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On,
                 };
-                Graphics.RenderMesh(rp, _hull, 0, Matrix4x4.TRS(pos, rot, new Vector3(1.6f, 0.9f, 4.6f)));
+                if (_hullModel != null)
+                {
+                    // Real lofted hull: raised prow forward (+Z after rotation).
+                    var hullM = Matrix4x4.TRS(pos - Vector3.up * 0.55f, rot, new Vector3(2.6f, 2.6f, 2.6f));
+                    Graphics.RenderMesh(rp, _hullModel, 0, hullM);
+                    if (_hullModel.subMeshCount > 1)
+                    {
+                        var rpDeck = rp; rpDeck.material = _deckMat;
+                        Graphics.RenderMesh(rpDeck, _hullModel, 1, hullM);
+                    }
+                }
+                else
+                {
+                    Graphics.RenderMesh(rp, _hull, 0, Matrix4x4.TRS(pos, rot, new Vector3(1.6f, 0.9f, 4.6f)));
+                }
                 var rpMast = rp; rpMast.material = _mastMat;
                 Graphics.RenderMesh(rpMast, _mast, 0, Matrix4x4.TRS(pos + rot * new Vector3(0, 2.4f, 0.2f), rot, new Vector3(0.16f, 4.2f, 0.16f)));
                 var rpSail = new RenderParams(_sailMats[Mathf.Clamp(ship.Culture, 0, 3)])
