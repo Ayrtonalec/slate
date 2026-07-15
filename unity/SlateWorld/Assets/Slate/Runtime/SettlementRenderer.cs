@@ -1,9 +1,8 @@
-// SLATE — settlements as clustered procedural architecture, GPU-instanced.
-// No two look alike: each has its own footprint (stretched along its own
-// axis), density, and roof shade within its culture's color. Defenses are
-// drawn from the sim's Walls field — a timber palisade if the town paid for
-// one, dressed stone if it paid for more, nothing if it never had to. The
-// Theater Principle: the sim knows "pop 1834, walls 1"; this performs it.
+// SLATE — settlements built from Architecture Kit 2.0: every culture builds
+// like itself (thatch, longhouses, adobe domes, terracotta villas), towns
+// keep their earned walls, and cities raise crenellated keeps. Politics now
+// reads from culture-colored banners on halls and keeps (roofs are honest
+// materials). Everything GPU-instanced; the Theater Principle throughout.
 using System.Collections.Generic;
 using UnityEngine;
 using Slate.Sim;
@@ -13,37 +12,50 @@ namespace Slate.Game
     public class SettlementRenderer : MonoBehaviour
     {
         private WorldRunner _runner;
-        private Mesh _body, _roof, _tower, _wall;
-        private Material _plasterMat, _wallMat, _palisadeMat, _ruinMat;
-        private Material[] _roofMats; // 4 cultures x 3 shades
+        private Mesh[][] _houses;         // [culture][variant], 2 submeshes each
+        private Mesh[] _halls, _keeps;    // [culture]
+        private Mesh _wall, _flag;
+        private Material[] _wallsMats, _accentMats, _flagMats;
+        private Material _stoneMat, _palisadeMat, _ruinMat, _poleMat;
 
-        private readonly List<Matrix4x4> _bodies = new List<Matrix4x4>();
-        private readonly List<Matrix4x4>[] _roofs = new List<Matrix4x4>[12];
+        private readonly List<Matrix4x4>[][] _houseGroups = new List<Matrix4x4>[4][];
+        private readonly List<Matrix4x4>[] _hallGroups = new List<Matrix4x4>[4];
+        private readonly List<Matrix4x4>[] _keepGroups = new List<Matrix4x4>[4];
         private readonly List<Matrix4x4> _walls = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _palisades = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _ruins = new List<Matrix4x4>();
+        private readonly List<(Vector3 pos, int culture)> _banners = new List<(Vector3, int)>();
         private long _signature = -1;
 
         public void Init(WorldRunner runner)
         {
             _runner = runner;
-            _body = ProceduralMeshes.HouseBody();
-            _roof = ProceduralMeshes.GableRoof();
-            _tower = ProceduralMeshes.Tower();
             _wall = ProceduralMeshes.Box();
-
-            _plasterMat = MakeLit(Palette.PlasterWarm);
-            _wallMat = MakeLit(Palette.WallStone);
-            _palisadeMat = MakeLit(new Color(0.34f, 0.26f, 0.18f)); // weathered timber
-            _ruinMat = MakeLit(Palette.RuinChar);
-            _roofMats = new Material[12];
-            float[] shades = { 0.82f, 1.0f, 1.18f };
+            _flag = ProceduralMeshes.FlagCloth();
+            _houses = new Mesh[4][];
+            _halls = new Mesh[4];
+            _keeps = new Mesh[4];
+            _wallsMats = new Material[4];
+            _accentMats = new Material[4];
+            _flagMats = new Material[4];
             for (int c = 0; c < 4; c++)
-                for (int k = 0; k < 3; k++)
-                {
-                    _roofs[c * 3 + k] = new List<Matrix4x4>();
-                    _roofMats[c * 3 + k] = MakeLit(Palette.CultureColor(c) * shades[k] * 1.05f);
-                }
+            {
+                _houses[c] = ArchitectureKit.Houses(c);
+                _halls[c] = ArchitectureKit.Hall(c);
+                _keeps[c] = ArchitectureKit.Keep(c);
+                _wallsMats[c] = MakeLit(ArchitectureKit.WallsColor(c));
+                _accentMats[c] = MakeLit(ArchitectureKit.AccentColor(c));
+                _flagMats[c] = new Material(Shader.Find("Slate/Flag"));
+                _flagMats[c].SetColor("_BaseColor", Palette.CultureColor(c) * 1.35f);
+                _houseGroups[c] = new List<Matrix4x4>[3];
+                for (int vIdx = 0; vIdx < 3; vIdx++) _houseGroups[c][vIdx] = new List<Matrix4x4>();
+                _hallGroups[c] = new List<Matrix4x4>();
+                _keepGroups[c] = new List<Matrix4x4>();
+            }
+            _stoneMat = MakeLit(Palette.WallStone);
+            _palisadeMat = MakeLit(new Color(0.34f, 0.26f, 0.18f));
+            _ruinMat = MakeLit(Palette.RuinChar);
+            _poleMat = MakeLit(new Color(0.30f, 0.24f, 0.18f));
         }
 
         public static Material MakeLit(Color c)
@@ -60,16 +72,15 @@ namespace Slate.Game
             var w = _runner?.World;
             if (w == null) return;
 
-            // Rebuild instance lists only when the built world meaningfully changed.
             long sig = w.Ruins.Count * 1000003L;
             foreach (var s in w.Settlements)
             {
                 if (s.Ruined) continue;
                 sig = sig * 31 + s.Id;
                 sig = sig * 31 + s.Tier;
-                sig = sig * 31 + s.Culture;         // conquest re-tints the roofs
-                sig = sig * 31 + s.Walls;           // defenses appear when paid for
-                sig = sig * 31 + (long)(s.Pop / 130); // house count buckets
+                sig = sig * 31 + s.Culture;
+                sig = sig * 31 + s.Walls;
+                sig = sig * 31 + (long)(s.Pop / 130);
             }
             if (sig != _signature) { _signature = sig; Rebuild(w); }
 
@@ -78,8 +89,13 @@ namespace Slate.Game
 
         private void Rebuild(World w)
         {
-            _bodies.Clear(); _walls.Clear(); _palisades.Clear(); _ruins.Clear();
-            for (int i = 0; i < 12; i++) _roofs[i].Clear();
+            for (int c = 0; c < 4; c++)
+            {
+                for (int vIdx = 0; vIdx < 3; vIdx++) _houseGroups[c][vIdx].Clear();
+                _hallGroups[c].Clear();
+                _keepGroups[c].Clear();
+            }
+            _walls.Clear(); _palisades.Clear(); _ruins.Clear(); _banners.Clear();
 
             foreach (var s in w.Settlements)
             {
@@ -93,13 +109,11 @@ namespace Slate.Game
         {
             var rnd = new System.Random(unchecked(w.Seed * 486187739 + s.Id * 1000003));
             Vector3 center = TerrainSampler.CellToWorld(s.X, s.Y);
+            int culture = Mathf.Clamp(s.Culture, 0, 3);
 
-            // --- Personality: every place has its own shape.
-            float elong = 1.05f + (float)rnd.NextDouble() * 0.45f;   // stretched footprint
-            float density = 0.75f + (float)rnd.NextDouble() * 0.5f;  // tight or sprawling
-            int shade = rnd.Next(3);                                  // roof shade in the culture color
+            float elong = 1.05f + (float)rnd.NextDouble() * 0.45f;
+            float density = 0.75f + (float)rnd.NextDouble() * 0.5f;
             float axisDeg = (float)(rnd.NextDouble() * 180);
-            // Towns on the water stretch along their shore.
             var shoreDir = ShoreDirection(w, s);
             if (shoreDir.HasValue) axisDeg = shoreDir.Value + 90f;
             var axis = Quaternion.Euler(0, axisDeg, 0);
@@ -107,7 +121,6 @@ namespace Slate.Game
             float radius = TerrainSampler.CellSize * (0.40f + 0.34f * s.Tier)
                 + Mathf.Min(6f, (float)s.Pop / 900f);
             int houses = Mathf.Max(2, (int)((2 + Mathf.Min(52, (int)(s.Pop / 70))) * density));
-            var roofList = _roofs[s.Culture * 3 + shade];
 
             for (int i = 0; i < houses; i++)
             {
@@ -123,36 +136,40 @@ namespace Slate.Game
                 }
                 if (!ok) continue;
 
-                float sw = 1.7f + (float)rnd.NextDouble() * 1.2f;
-                float sh = 1.5f + (float)rnd.NextDouble() * 0.8f + s.Tier * 0.15f;
-                float sd = 1.7f + (float)rnd.NextDouble() * 1.2f;
+                // Variant mix: mostly the common house, some larger kinds.
+                double roll = rnd.NextDouble();
+                int variant = roll < 0.6 ? 0 : roll < 0.85 ? 1 : 2;
+                float sc = 2.1f + (float)rnd.NextDouble() * 0.9f + s.Tier * 0.15f;
                 var rot = Quaternion.Euler(0, (float)(rnd.NextDouble() * 360), 0);
-                _bodies.Add(Matrix4x4.TRS(pos, rot, new Vector3(sw, sh, sd)));
-                roofList.Add(Matrix4x4.TRS(pos + Vector3.up * sh, rot, new Vector3(sw, sh * 0.85f, sd)));
+                _houseGroups[culture][variant].Add(Matrix4x4.TRS(pos, rot, new Vector3(sc, sc * (0.92f + (float)rnd.NextDouble() * 0.16f), sc)));
             }
 
-            // The hall: one big roof at the center from village up. Rich towns build bigger.
-            if (s.Tier >= 1)
+            // The center: a hall from village up, a crenellated keep for cities.
+            Vector3 c0 = center; c0.y = TerrainSampler.GroundY(c0.x, c0.z);
+            if (c0.y > 0.35f)
             {
-                Vector3 pos = center; pos.y = TerrainSampler.GroundY(pos.x, pos.z);
-                if (pos.y > 0.35f)
+                var rot = Quaternion.Euler(0, axisDeg, 0);
+                if (s.Tier >= 3)
                 {
-                    var rot = Quaternion.Euler(0, axisDeg, 0);
-                    float wealthBonus = Mathf.Min(1.2f, (float)s.Wealth / 60f);
-                    float hw = 3.2f + s.Tier * 0.6f + wealthBonus, hh = 2.5f + s.Tier * 0.5f + wealthBonus * 0.5f;
-                    _bodies.Add(Matrix4x4.TRS(pos, rot, new Vector3(hw, hh, hw * 1.25f)));
-                    _roofs[s.Culture * 3 + shade].Add(Matrix4x4.TRS(pos + Vector3.up * hh, rot, new Vector3(hw, hh, hw * 1.25f)));
+                    float k = 3.4f + Mathf.Min(1.2f, (float)s.Wealth / 80f);
+                    _keepGroups[culture].Add(Matrix4x4.TRS(c0, rot, new Vector3(k, k, k)));
+                    _banners.Add((c0 + Vector3.up * (k * 2.9f), culture));
+                }
+                else if (s.Tier >= 1)
+                {
+                    float h = 2.6f + s.Tier * 0.5f + Mathf.Min(1.0f, (float)s.Wealth / 60f);
+                    _hallGroups[culture].Add(Matrix4x4.TRS(c0, rot, new Vector3(h, h, h)));
+                    _banners.Add((c0 + Vector3.up * (h * 1.6f), culture));
                 }
             }
 
-            // --- Defenses: only what the sim says was actually built and paid for.
+            // Defenses: what the sim says was built and paid for.
             if (s.Walls >= 1)
             {
                 float rx = radius * elong + 3.6f;
                 float rz = radius * 0.85f + 3.6f;
                 if (s.Walls == 1)
                 {
-                    // Timber palisade: a ring of posts.
                     float circ = Mathf.PI * (rx + rz);
                     int posts = Mathf.Max(20, (int)(circ / 1.15f));
                     for (int i = 0; i < posts; i++)
@@ -167,7 +184,6 @@ namespace Slate.Game
                 }
                 else
                 {
-                    // Dressed stone: slabs and towers.
                     float circ = Mathf.PI * (rx + rz);
                     int segs = Mathf.Max(18, (int)(circ / 5.2f));
                     float wallH = s.Tier >= 3 ? 3.6f : 2.6f;
@@ -195,7 +211,6 @@ namespace Slate.Game
             }
         }
 
-        // Direction (yaw degrees) from the settlement toward nearby open water, if any.
         private float? ShoreDirection(World w, Settlement s)
         {
             for (int r = 1; r <= 3; r++)
@@ -230,14 +245,41 @@ namespace Slate.Game
 
         private void Draw()
         {
-            DrawGroup(_body, _plasterMat, _bodies);
-            for (int i = 0; i < 12; i++) DrawGroup(_roof, _roofMats[i], _roofs[i]);
-            DrawGroup(_wall, _wallMat, _walls);
+            for (int c = 0; c < 4; c++)
+            {
+                for (int vIdx = 0; vIdx < 3; vIdx++)
+                {
+                    DrawGroupSub(_houses[c][vIdx], 0, _wallsMats[c], _houseGroups[c][vIdx]);
+                    DrawGroupSub(_houses[c][vIdx], 1, _accentMats[c], _houseGroups[c][vIdx]);
+                }
+                DrawGroupSub(_halls[c], 0, _wallsMats[c], _hallGroups[c]);
+                DrawGroupSub(_halls[c], 1, _accentMats[c], _hallGroups[c]);
+                DrawGroupSub(_keeps[c], 0, _stoneMat, _keepGroups[c]);
+                DrawGroupSub(_keeps[c], 1, _accentMats[c], _keepGroups[c]);
+            }
+            DrawGroup(_wall, _stoneMat, _walls);
             DrawGroup(_wall, _palisadeMat, _palisades);
             DrawGroup(_wall, _ruinMat, _ruins);
+
+            // Banners: politics at a glance, waving over halls and keeps.
+            foreach (var (pos, culture) in _banners)
+            {
+                var rp = new RenderParams(_poleMat)
+                {
+                    worldBounds = new Bounds(pos, Vector3.one * 16),
+                    shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,
+                };
+                Graphics.RenderMesh(rp, _wall, 0, Matrix4x4.TRS(pos + Vector3.up * 1.2f, Quaternion.identity, new Vector3(0.12f, 2.4f, 0.12f)));
+                var rpFlag = new RenderParams(_flagMats[culture])
+                {
+                    worldBounds = new Bounds(pos, Vector3.one * 16),
+                    shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,
+                };
+                Graphics.RenderMesh(rpFlag, _flag, 0, Matrix4x4.TRS(pos + Vector3.up * 2.1f, Quaternion.identity, new Vector3(1.5f, 0.8f, 1f)));
+            }
         }
 
-        public static void DrawGroup(Mesh mesh, Material mat, List<Matrix4x4> matrices)
+        private static void DrawGroupSub(Mesh mesh, int submesh, Material mat, List<Matrix4x4> matrices)
         {
             if (matrices.Count == 0) return;
             var rp = new RenderParams(mat)
@@ -249,8 +291,11 @@ namespace Slate.Game
             for (int i = 0; i < matrices.Count; i += 1023)
             {
                 int count = Mathf.Min(1023, matrices.Count - i);
-                Graphics.RenderMeshInstanced(rp, mesh, 0, matrices, count, i);
+                Graphics.RenderMeshInstanced(rp, mesh, submesh, matrices, count, i);
             }
         }
+
+        public static void DrawGroup(Mesh mesh, Material mat, List<Matrix4x4> matrices)
+            => DrawGroupSub(mesh, 0, mat, matrices);
     }
 }

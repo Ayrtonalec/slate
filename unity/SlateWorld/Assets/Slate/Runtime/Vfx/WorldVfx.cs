@@ -19,7 +19,7 @@ namespace Slate.Game
 
         private ParticleSystem _flames, _embers, _smoke, _pyre;
         private ParticleSystem _miasma, _locusts, _rain, _motes, _glitter;
-        private ParticleSystem _snow, _dust, _sparks;
+        private ParticleSystem _snow, _dust, _sparks, _hearth;
 
         private class Smolder { public Vector3 Pos; public int UntilYear; }
         private readonly List<Smolder> _smolders = new List<Smolder>();
@@ -129,6 +129,14 @@ namespace Slate.Game
                 ColorA = new Color(1f, 0.95f, 0.75f, 1f), ColorB = new Color(1f, 0.8f, 0.4f, 1f),
                 SizeMin = 0.15f, SizeMax = 0.3f, LifeMin = 0.3f, LifeMax = 0.7f,
                 Gravity = 1.2f, FadeInOut = true, MaxParticles = 400,
+            });
+            _hearth = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
+            {
+                Name = "hearth-smoke", Material = VfxToolkit.BillowMaterial,
+                ColorA = new Color(0.72f, 0.70f, 0.66f, 0.28f), ColorB = new Color(0.60f, 0.58f, 0.55f, 0.22f),
+                SizeMin = 0.5f, SizeMax = 0.9f, LifeMin = 2.5f, LifeMax = 4f,
+                Gravity = -0.16f, NoiseStrength = 0.2f, NoiseFrequency = 0.4f,
+                FadeInOut = true, GrowOverLife = 2.2f, MaxParticles = 600,
             });
 
             _fireLights = new Light[6];
@@ -338,6 +346,28 @@ namespace Slate.Game
                 var p = TerrainSampler.CellToWorld(d.X, d.Y);
                 p.y = TerrainSampler.GroundY(p.x, p.z) + 2f;
                 VfxToolkit.Emit(_pyre, p, 1, 1f, new Vector3(0.2f, 1.8f, 0.2f));
+            }
+
+            // --- Hearth smoke: chimneys breathe in the settlements you're near.
+            if (_rig != null && _rig.Height < 240f)
+            {
+                int budget = 0;
+                foreach (var s in w.Settlements)
+                {
+                    if (s.Ruined || s.PlagueState == 1) continue;
+                    var c = TerrainSampler.CellToWorld(s.X, s.Y);
+                    if ((c - _rig.Focus).sqrMagnitude > 300f * 300f) continue;
+                    if (++budget > 10) break;
+                    if (!Roll(3f)) continue;
+                    // A few fixed hearths per settlement, hash-placed among the houses.
+                    int hearthIdx = Random.Range(0, 3);
+                    float ang = (float)(SlateRng.Hash2(s.Id, hearthIdx, 0xCAFE) * Mathf.PI * 2);
+                    float dist = TerrainSampler.CellSize * (0.25f + 0.5f * (float)SlateRng.Hash2(hearthIdx, s.Id, 0xBEE));
+                    var p = c + new Vector3(Mathf.Cos(ang) * dist, 0, Mathf.Sin(ang) * dist);
+                    p.y = TerrainSampler.GroundY(p.x, p.z) + 2.6f;
+                    if (p.y < 2.6f) continue;
+                    VfxToolkit.Emit(_hearth, p, 1, 0.2f, new Vector3(0.25f, 1.4f, 0.1f));
+                }
             }
 
             // --- Marching armies raise dust.

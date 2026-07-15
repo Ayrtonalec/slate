@@ -63,6 +63,28 @@ top-right is the Chronicle, live.
 - Everything visual samples the ground through `TerrainSampler` so all systems
   agree where the terrain is.
 
+## Asset Store shortlist (for the joint import session)
+
+Strategy is hybrid: Claude builds culture-parameterized architecture and
+vegetation in code (Architecture Kit 2.0); the store covers what code can't —
+characters with animations, hero-detail nature, texture upgrades. Vetted
+starting points (check current prices/reviews together in the editor):
+
+- [Low Poly Fantasy Medieval Village](https://assetstore.unity.com/packages/3d/environments/fantasy/low-poly-fantasy-medieval-village-163701)
+  (JustCreate, 219 prefabs — houses/props/nature in one coherent style)
+- [Low Poly Fantasy Medieval Village with Castle](https://assetstore.unity.com/packages/3d/environments/fantasy/low-poly-fantasy-medieval-village-with-castle-240465)
+  (same series, adds castle parts)
+- [Lowpoly Medieval Peasants — FREE](https://assetstore.unity.com/packages/3d/characters/humanoids/humans/lowpoly-medieval-peasants-free-low-poly-medieval-fantasy-series-122225)
+  (rigged humanoids — first candidate to replace the box villagers)
+- [Medieval Animations Mega Pack](https://assetstore.unity.com/packages/3d/animations/medieval-animations-mega-pack-12141)
+  (walk/work/fight animation library, retargets onto humanoid rigs)
+- [Villager Animated Character](https://assetstore.unity.com/packages/3d/characters/humanoids/fantasy/villager-animated-character-323283)
+  (DEXSOFT, single polished villager with animations)
+
+Import order when we do it: peasants (free) -> retarget Mega Pack animations
+onto VillagerCrowd -> then judge whether village/castle packs beat the
+procedural kit before buying.
+
 ## Headless commands (what Claude runs; you can too)
 
 ```

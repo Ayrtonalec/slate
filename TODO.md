@@ -115,11 +115,16 @@ must do ALL of this to itself, no god input:
 - [x] (2026-07-15) Git LFS installed + `.gitattributes` scoped to
       `unity/SlateWorld/Assets/**` binaries (textures/models/audio). Ready for
       asset packs.
-- [ ] **Asset pack import session (founder + Claude together)**: founder logs
-      into the Asset Store/Fab in the editor and downloads picks (medieval
-      houses, characters+animations, trees); Claude wires them into the
-      renderers (SettlementRenderer/TreeRenderer/VillagerCrowd swap procedural
-      meshes for pack prefabs). This is THE next big visual jump.
+- [ ] **Fog wall live-tuning session**: founder eyeballs the Endless Sea fog
+      in-editor and directs (darker/thicker/lower); Claude adjusts via the
+      command bridge in real time. (Founder: "komt later wel", 2026-07-15.)
+- [ ] **Asset strategy = hybrid** (decided 2026-07-15): Claude builds
+      culture-parameterized procedural architecture + vegetation himself
+      (Architecture Kit 2.0 — the "different houses/castles/desert/tree
+      variety" wish); the Asset Store/Fab session (founder logs in, Claude
+      wires) covers what code can't: characters + animations, hero-detail
+      trees, texture upgrades. Store shortlist to vet together in
+      `unity/README.md`.
 - [ ] Commit conventions + branch flow simple enough for two devs (founder + Claude).
 
 ## T7 — Idea larder batches (founder greenlit ALL on 2026-07-15; order A → C → B → D)

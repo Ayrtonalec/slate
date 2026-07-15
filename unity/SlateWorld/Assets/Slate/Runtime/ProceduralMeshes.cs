@@ -148,6 +148,81 @@ namespace Slate.Game
             return Build(v, t);
         }
 
+        // Broadleaf canopy: a squashed low-poly sphere; center at origin.
+        public static Mesh Broadleaf(int seg = 7, int rings = 4)
+        {
+            var v = new List<Vector3>(); var t = new List<int>();
+            for (int r = 0; r < rings; r++)
+            {
+                float a0 = Mathf.PI * (-0.5f + (float)r / rings);
+                float a1 = Mathf.PI * (-0.5f + (float)(r + 1) / rings);
+                float y0 = Mathf.Sin(a0) * 0.42f, y1 = Mathf.Sin(a1) * 0.42f;
+                float r0 = Mathf.Cos(a0) * 0.5f, r1 = Mathf.Cos(a1) * 0.5f;
+                for (int s = 0; s < seg; s++)
+                {
+                    float b0 = s * Mathf.PI * 2 / seg, b1 = (s + 1) * Mathf.PI * 2 / seg;
+                    int i = v.Count;
+                    v.Add(new Vector3(Mathf.Cos(b0) * r0, y0, Mathf.Sin(b0) * r0));
+                    v.Add(new Vector3(Mathf.Cos(b1) * r0, y0, Mathf.Sin(b1) * r0));
+                    v.Add(new Vector3(Mathf.Cos(b1) * r1, y1, Mathf.Sin(b1) * r1));
+                    v.Add(new Vector3(Mathf.Cos(b0) * r1, y1, Mathf.Sin(b0) * r1));
+                    t.Add(i); t.Add(i + 2); t.Add(i + 1);
+                    t.Add(i); t.Add(i + 3); t.Add(i + 2);
+                }
+            }
+            return Build(v, t);
+        }
+
+        // Umbrella pine canopy: a wide, flat cone; base at y=0.
+        public static Mesh UmbrellaCanopy(int seg = 8)
+        {
+            var v = new List<Vector3>(); var t = new List<int>();
+            Vector3 apex = new Vector3(0, 0.30f, 0);
+            for (int i = 0; i < seg; i++)
+            {
+                float a0 = i * Mathf.PI * 2 / seg, a1 = (i + 1) * Mathf.PI * 2 / seg;
+                int k = v.Count;
+                v.Add(new Vector3(Mathf.Cos(a0) * 0.55f, 0, Mathf.Sin(a0) * 0.55f));
+                v.Add(new Vector3(Mathf.Cos(a1) * 0.55f, 0, Mathf.Sin(a1) * 0.55f));
+                v.Add(apex);
+                t.Add(k); t.Add(k + 2); t.Add(k + 1);
+                // underside so the canopy isn't hollow from below
+                int u = v.Count;
+                v.Add(new Vector3(Mathf.Cos(a0) * 0.55f, 0, Mathf.Sin(a0) * 0.55f));
+                v.Add(new Vector3(Mathf.Cos(a1) * 0.55f, 0, Mathf.Sin(a1) * 0.55f));
+                v.Add(new Vector3(0, 0.06f, 0));
+                t.Add(u); t.Add(u + 1); t.Add(u + 2);
+            }
+            return Build(v, t);
+        }
+
+        // Palm crown: fronds radiating and drooping from the origin.
+        public static Mesh PalmCrown(int fronds = 6)
+        {
+            var v = new List<Vector3>(); var t = new List<int>();
+            for (int i = 0; i < fronds; i++)
+            {
+                float ang = i * Mathf.PI * 2 / fronds + 0.3f;
+                var q = Quaternion.Euler(0, ang * Mathf.Rad2Deg, 0) * Quaternion.Euler(0, 0, -28f);
+                Vector3 dir = q * Vector3.right;
+                Vector3 mid = dir * 0.5f;
+                AddBox(v, t, mid, new Vector3(0.02f, 0.02f, 0.02f)); // keeps builder happy on tiny hinge
+                // frond blade: flattened box along the droop direction
+                int k = v.Count;
+                Vector3 side = Vector3.Cross(dir, Vector3.up).normalized * 0.10f;
+                Vector3 tip = dir * 1.05f + Vector3.down * 0.22f;
+                v.Add(-side); v.Add(side); v.Add(tip + side * 0.3f); v.Add(tip - side * 0.3f);
+                t.Add(k); t.Add(k + 1); t.Add(k + 2);
+                t.Add(k); t.Add(k + 2); t.Add(k + 3);
+                t.Add(k); t.Add(k + 2); t.Add(k + 1); // double-sided
+                t.Add(k); t.Add(k + 3); t.Add(k + 2);
+            }
+            var m = new Mesh();
+            m.SetVertices(v); m.SetTriangles(t, 0);
+            m.RecalculateNormals(); m.RecalculateBounds();
+            return m; // no EnsureOutward: fronds are intentionally double-sided
+        }
+
         // Tree trunk: thin box, base at y=0, height 1.
         public static Mesh Trunk()
         {
