@@ -142,6 +142,45 @@ must do ALL of this to itself, no god input:
       per culture), shrines → temples visible, interpretation voices after
       god acts.
 
+### T7.VFX — the "wow, sick!" bar (founder-locked 2026-07-15) ⚠ applies to ALL of the above
+
+**The rule:** every world phenomenon must be recognizable *purely from its
+effects and animation* — no label, no chronicle line, no tooltip needed — and
+must look good enough that a first-time viewer goes "wow". The current flat
+zone-discs are explicitly **placeholders** and do not meet this bar. Definition
+of done per phenomenon ("a stranger watching over your shoulder names it
+unprompted"):
+
+- [ ] **Plague**: a low, creeping grey-green miasma hugging the streets;
+      thin pyre-smoke columns rising from the town; carrion birds circling;
+      color drains from the settlement while it sickens. NOT a flat disc.
+- [ ] **Wildfire**: actual licking flame particles with embers rising, a
+      towering smoke plume that leans with the wind, orange glow on the
+      terrain at night-side of the plume; blackened trunks left standing.
+- [ ] **Locusts**: a granular, buzzing particle swarm (thousands of specks
+      swirling), casting a moving shadow; crops visibly vanish under it.
+- [ ] **Earthquake**: ground dust bursts along the fault line, buildings
+      shudder (brief transform jitter), walls crumble with debris chunks;
+      a subtle camera tremor when zoomed close (respect reduced-motion).
+- [ ] **Flood**: the river visibly widens/rises over its banks, muddy water
+      color, debris drifting; wet sheen on the floodplain afterwards.
+- [ ] **Winter**: falling snow particles at close zoom, breath-of-frost fog
+      banks, iced river sheen; spring melt drips/puddles.
+- [ ] **War**: marching dust column behind armies, banner cloth waving (not
+      a rigid yaw-wobble), arrow volleys + clash flashes at the battle,
+      smoke over a sacked town for years after.
+- [ ] **Dragons**: wingbeat shadow passing over the land, smoke curl from
+      the lair, fire-breath sweep on raids.
+- [ ] **God powers**: each verb gets a signature (gold veins glitter through
+      the rock, curse = churning storm cell with rain streaks + lightning,
+      bless = drifting golden motes and sudden bloom).
+- [ ] Technical vehicle: URP particle systems / VFX Graph + animated shaders
+      (vertex displacement, scrolling noise), soft decals; later audio. Build
+      as a reusable `Slate.Game.Vfx` toolkit, one prefab-per-phenomenon, so
+      Batch B/C/D phenomena get the same treatment for free.
+- [ ] Acceptance test per effect: screenshot/GIF review — "would a stranger
+      know what this is and say wow?" If either answer is no, it's not done.
+
 ## T6 — Keep the prototype as the cheap design playground
 
 - [ ] New mechanic ideas get a fast JS prototype pass in `god-sim-prototype/` before
