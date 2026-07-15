@@ -1,0 +1,171 @@
+// SLATE — the headless battery, ported from god-sim-prototype/test/headless.js.
+// The design bible's promise that the world lives (and diverges) with zero
+// divine input, made executable. Must be green before any commit that
+// touches the sim.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework;
+using Slate.Sim;
+
+namespace Slate.Sim.Tests
+{
+    public class HeadlessBatteryTests
+    {
+        private sealed class Stats
+        {
+            public int Alive, Cultures, RuinsCount, Events;
+            public double Pop;
+            public Dictionary<string, int> ByType = new Dictionary<string, int>();
+        }
+
+        private static Stats StatsOf(World w)
+        {
+            var alive = w.AliveSettlements();
+            var st = new Stats
+            {
+                Alive = alive.Count,
+                Pop = alive.Sum(s => s.Pop),
+                Cultures = alive.Select(s => s.Culture).Distinct().Count(),
+                RuinsCount = w.Ruins.Count,
+                Events = w.Chronicle.Events.Count,
+            };
+            foreach (var e in w.Chronicle.Events)
+                st.ByType[e.Type] = st.ByType.TryGetValue(e.Type, out int n) ? n + 1 : 1;
+            return st;
+        }
+
+        [Test]
+        public void ObserverMode_FiveSeeds_500Years_SaneAndDivergent()
+        {
+            int[] seeds = { 1, 2, 3, 7, 42 };
+            var outcomes = new List<Stats>();
+            foreach (int seed in seeds)
+            {
+                var w = World.Create(seed);
+                Simulation.RunYears(w, 500);
+                var st = StatsOf(w);
+                outcomes.Add(st);
+                TestContext.Out.WriteLine(
+                    $"seed {seed}: {st.Alive} alive, pop {Math.Round(st.Pop)}, {st.Cultures} cultures, " +
+                    $"{st.RuinsCount} ruins, {st.Events} events");
+
+                Assert.That(st.Alive, Is.InRange(15, 450), $"seed {seed}: settlements in sane range");
+                Assert.That(st.Pop, Is.InRange(15000, 4000000), $"seed {seed}: population sane");
+                Assert.That(double.IsNaN(st.Pop) || double.IsInfinity(st.Pop), Is.False, $"seed {seed}: population finite");
+                Assert.That(st.Cultures, Is.GreaterThanOrEqualTo(2), $"seed {seed}: >=2 cultures survive");
+                Assert.That(st.Events, Is.GreaterThanOrEqualTo(60), $"seed {seed}: chronicle is alive");
+                Assert.That(w.Settlements.Any(s => double.IsNaN(s.Pop) || double.IsInfinity(s.Pop)), Is.False,
+                    $"seed {seed}: no NaN populations");
+            }
+
+            // Divergence: seeds must produce different-shaped histories.
+            int spread = outcomes.Max(o => o.Alive) - outcomes.Min(o => o.Alive);
+            Assert.That(spread, Is.GreaterThanOrEqualTo(8), "divergence: settlement counts spread across seeds");
+        }
+
+        [Test]
+        public void Determinism_SameSeed_ReplaysIdentically()
+        {
+            var a = World.Create(7); Simulation.RunYears(a, 120);
+            var b = World.Create(7); Simulation.RunYears(b, 120);
+            var sa = a.Chronicle.Events.Select(e => $"{e.Year}|{e.Type}|{e.Text}").ToArray();
+            var sb = b.Chronicle.Events.Select(e => $"{e.Year}|{e.Type}|{e.Text}").ToArray();
+            Assert.That(sa, Is.EqualTo(sb), "determinism: seed 7 replays identically");
+        }
+
+        [Test]
+        public void GoldCascade_SeedGoldInWildMountains_MiningBoomFollows()
+        {
+            var w = World.Create(42);
+            Simulation.RunYears(w, 60);
+
+            // Find wild mountains: a vein spot with no settlement within 6 but people within 16.
+            (int X, int Y)? spot = null;
+            for (int y = 4; y < w.H - 4 && spot == null; y++)
+                for (int x = 4; x < w.W - 4 && spot == null; x++)
+                {
+                    if (w.Biome[w.Idx(x, y)] != B.MOUNTAIN) continue;
+                    if (w.SettlementNear(x, y, 6) != null) continue;
+                    if (w.SettlementNear(x, y, 16) == null) continue;
+                    spot = (x, y);
+                }
+            Assert.That(spot, Is.Not.Null, "found a wild mountain near civilization");
+
+            int before = w.Chronicle.Events.Count;
+            var res = Powers.SeedGold(w, spot.Value.X, spot.Value.Y);
+            Assert.That(res.Ok, Is.True, "seedGold accepted on mountain");
+            Simulation.RunYears(w, 80);
+            var after = w.Chronicle.Events.Skip(before).ToList();
+            var camp = after.FirstOrDefault(e => e.Type == "camp" || e.Type == "goldFound");
+            Assert.That(camp, Is.Not.Null, "a mining camp or strike follows within 80 years");
+            var settled = w.SettlementNear(spot.Value.X, spot.Value.Y, 5);
+            Assert.That(settled != null && !settled.Ruined, Is.True, "someone now lives by the vein");
+            TestContext.Out.WriteLine($"cascade: \"{camp.Text}\" (Year {camp.Year})");
+
+            var rejected = Powers.SeedGold(w, 2, 2);
+            byte b = w.Biome[w.Idx(2, 2)];
+            Assert.That(!rejected.Ok || b == B.MOUNTAIN || b == B.HILLS, Is.True, "seedGold rejected off high stone");
+        }
+
+        [Test]
+        public void CurseCascade_CurseThrivingCoast_Exodus()
+        {
+            var w = World.Create(7);
+            Simulation.RunYears(w, 120);
+            var target = w.AliveSettlements().OrderByDescending(s => s.Pop).First();
+            Assert.That(target.Pop, Is.GreaterThan(200), "found a thriving settlement");
+
+            double popBefore = target.Pop;
+            var res = Powers.CurseWeather(w, target.X, target.Y);
+            Assert.That(res.Ok, Is.True, "curseWeather accepted on land");
+            Simulation.RunYears(w, 60);
+            bool collapsed = target.Ruined || target.Pop < popBefore * 0.5;
+            Assert.That(collapsed, Is.True,
+                $"the settlement collapses or empties within 60 years (pop {Math.Round(popBefore)} -> {Math.Round(target.Pop)}, ruined={target.Ruined})");
+            TestContext.Out.WriteLine(
+                $"{target.Name}: pop {Math.Round(popBefore)} -> {(target.Ruined ? "RUINS (Year " + target.RuinedYear + ")" : Math.Round(target.Pop).ToString())}");
+        }
+
+        [Test]
+        public void BlessCascade_BlessEmptyLand_SettlersArrive()
+        {
+            var w = World.Create(3);
+            Simulation.RunYears(w, 80);
+
+            // Pick empty-but-livable plains (blessing barren tundra rightly does nothing).
+            (int X, int Y)? spot = null;
+            double spotFert = 10;
+            for (int y = 6; y < w.H - 6; y++)
+                for (int x = 6; x < w.W - 6; x++)
+                {
+                    int i = w.Idx(x, y);
+                    if (!w.IsLandAt(x, y) || w.Biome[i] != B.PLAINS) continue;
+                    if (w.SettlementNear(x, y, 7) != null) continue;
+                    if (w.SettlementNear(x, y, 14) == null) continue;
+                    double f = w.FertAround(x, y, 2);
+                    if (f > spotFert) { spotFert = f; spot = (x, y); }
+                }
+            if (spot == null)
+            {
+                Assert.Ignore("no suitable empty plains found on this seed — skipped");
+                return;
+            }
+            var res = Powers.BlessLand(w, spot.Value.X, spot.Value.Y);
+            Assert.That(res.Ok, Is.True, "blessLand accepted");
+            Simulation.RunYears(w, 100);
+            var settled = w.SettlementNear(spot.Value.X, spot.Value.Y, 6);
+            Assert.That(settled, Is.Not.Null, "blessed land attracts settlement within 100 years");
+        }
+
+        [Test]
+        public void Chronicle_ExportsToMarkdown()
+        {
+            var w = World.Create(7);
+            Simulation.RunYears(w, 300);
+            string md = w.Chronicle.ToMarkdown(w);
+            Assert.That(md.Length, Is.GreaterThan(1000), "chronicle markdown has substance");
+            Assert.That(md, Does.Contain("## Years"), "chronicle markdown grouped by century");
+        }
+    }
+}

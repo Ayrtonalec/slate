@@ -22,3 +22,22 @@ build/
 _yardoc
 doc/
 .idea/
+
+# Unity (only Assets/, Packages/, ProjectSettings/ belong in git)
+unity/*/[Ll]ibrary/
+unity/*/[Tt]emp/
+unity/*/[Ll]ogs/
+unity/*/[Uu]serSettings/
+unity/*/obj/
+unity/*/.vs/
+unity/*/.vscode/
+unity/*/*.csproj
+unity/*/*.sln
+unity/*/*.slnx
+unity/createproject.log
+unity/*.log
+unity/shots/
+unity/test-results.xml
+
+# The founder's scratch project from Unity Hub (superseded by SlateWorld)
+unity/My project/

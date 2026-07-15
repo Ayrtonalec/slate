@@ -282,6 +282,22 @@ farming, culture drift), faith v0.1 (T4), dual-dev setup (T5). Suggested order:
 T2 → T1 → T5 → T3/T4. The Phase 0 prototype stays alive as the cheap design
 playground (T6).
 
+**T2/T5 update (2026-07-15, same local session, after the founder installed
+Unity 6000.5.4f1):** the C# port and the first playable Unity build both landed.
+`SlateSim/` (repo root) is the engine-agnostic sim core as a Unity local package
+(`com.slate.sim`, `noEngineReferences: true` so the compiler enforces the law);
+all Phase 0 systems ported 1:1 with JS quirks preserved (stable sorts, JS
+`Math.round`, float32 heightmap); NUnit battery 6/6 green in ~4s. `unity/SlateWorld`
+is the Unity 6 URP project: procedural terrain mesh (vertex-color painterly wash,
+snowcaps, river stains, roads painted as history happens), depth-tinted sea with
+shore foam, instanced forests, settlements as procedural architecture (roof color
+= culture; walls/towers at town+), villagers walking settlements at close zoom
+(pure theater), zone effects (storms/blessings/dragon menace/event pings), one
+smooth Atlas↔Settlement zoom camera, live chronicle feed HUD. Everything builds
+headless (`ProjectSetup.BuildAll`) and screenshots via `ScreenshotRunner.Run`.
+Founder onboarding: `unity/README.md`. The founder's Unity Hub scratch project
+(`unity/My project`, HDRP template) is git-ignored — superseded by SlateWorld.
+
 **T1 update (2026-07-15, first local session):** the founder re-weighted the
 engine criteria (multiplayer, asset creation with Claude Code, Claude Code
 compatibility, performance, and *no revenue-percentage royalties*) and asked for

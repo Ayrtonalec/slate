@@ -1,0 +1,397 @@
+// SLATE — the simulation tick. One tick = one month.
+// Port of god-sim-prototype/src/sim.js. Order is fixed and deterministic:
+// climate -> settlements -> colonization -> gold -> dragons -> roads -> claims.
+// The world runs with zero divine input; god powers only perturb it.
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Slate.Sim
+{
+    // Named "Simulation" (not "Sim") so it never collides with the Slate.Sim namespace.
+    public static class Simulation
+    {
+        private const int FEAR_R = 8;  // dragon terror radius
+        private const int RAID_R = 10;
+
+        public static void Tick(World w)
+        {
+            var rng = w.RngSim;
+            w.Tick++;
+            w.Month = w.Tick % 12;
+            w.Year = w.Tick / 12;
+
+            if (w.Month == 0) Yearly(w, rng);
+
+            // --- Per-settlement dragon fear cache (cheap: few dragons).
+            var feared = new HashSet<int>();
+            foreach (var d in w.Dragons)
+            {
+                foreach (var s in w.Settlements)
+                {
+                    if (s.Ruined) continue;
+                    double d2 = (double)(s.X - d.X) * (s.X - d.X) + (double)(s.Y - d.Y) * (s.Y - d.Y);
+                    if (d2 <= FEAR_R * FEAR_R) feared.Add(s.Id);
+                }
+            }
+
+            // --- Settlements.
+            foreach (var s in w.Settlements)
+            {
+                if (s.Ruined) continue;
+                var storm = w.StormAt(s.X, s.Y);
+
+                int deg = w.RoadDeg.TryGetValue(s.Id, out int dv) ? dv : 0;
+                bool boom = w.Tick < s.BoomUntil;
+                s.Prosp = 1 + 0.15 * deg + (s.Gold ? 2.5 : 0) + (s.Fish ? 0.3 : 0) + s.Tier * 0.15 + (boom ? 1 : 0);
+
+                // Food capacity: staggered recompute, or forced when fertility changed.
+                if (w.FertDirty || (w.Tick + s.Id) % 24 == 0)
+                {
+                    double cap = w.FertAround(s.X, s.Y, 3) * 26;
+                    if (s.Fish && storm == null) cap += 170;
+                    cap *= 1 + 0.7 * Math.Max(0, s.Prosp - 1); // trade feeds cities beyond what fields carry
+                    if (w.LeanYears > 0) cap *= 0.85;
+                    s.Cap = Math.Max(25, cap);
+                }
+
+                double prev = s.Pop;
+                if (storm != null)
+                {
+                    s.Pop *= 0.972; // the sky itself is against them
+                }
+                else
+                {
+                    double r = 0.011 * (0.75 + 0.25 * Math.Min(2.2, s.Prosp));
+                    if (boom) r *= 1.6;
+                    if (feared.Contains(s.Id)) r *= 0.25;
+                    s.Pop += s.Pop * r * (1 - s.Pop / s.Cap);
+                }
+
+                s.DeclineStreak = s.Pop < prev - 0.01 ? s.DeclineStreak + 1 : 0;
+
+                // Hunger and famine: chronicled only when the deficit is deep and rare.
+                if (s.Pop > s.Cap * 1.2)
+                {
+                    s.HungerStreak++;
+                    if (s.HungerStreak >= 15 && s.Pop > 250 && w.Year - s.LastFamineYear > 15)
+                    {
+                        s.LastFamineYear = w.Year;
+                        s.HungerStreak = 0;
+                        w.Chronicle.Add(w, "famine", new EvData { Name = s.Name, X = s.X, Y = s.Y });
+                        s.Pop *= 0.82;
+                        var dest = BestNeighbor(w, s);
+                        if (dest != null) { dest.Pop += s.Pop * 0.06; s.Pop *= 0.94; }
+                    }
+                }
+                else if (s.HungerStreak > 0) s.HungerStreak = Math.Max(0, s.HungerStreak - 2);
+
+                // Tier transitions: chronicled only the first time a rank is reached.
+                int t = w.TierOf(s.Pop);
+                if (t > s.Tier)
+                {
+                    s.Tier = t;
+                    if (t > s.MaxTier)
+                    {
+                        s.MaxTier = t;
+                        int popRounded = (int)Math.Floor(s.Pop / 50 + 0.5) * 50; // JS Math.round
+                        var data = new EvData { Name = s.Name, Pop = popRounded, Culture = s.Culture, X = s.X, Y = s.Y };
+                        w.Chronicle.Add(w, t == 1 ? "village" : t == 2 ? "town" : "city", data);
+                    }
+                    w.Dirty.Features = w.Dirty.Borders = w.Dirty.Labels = true;
+                }
+                else if (t < s.Tier)
+                {
+                    s.Tier = t; // quiet decline; the chronicle notices only the fall to ruin
+                    w.Dirty.Features = w.Dirty.Labels = true;
+                }
+
+                // Abandonment.
+                if ((s.Pop < 35 && s.DeclineStreak > 24) || (storm != null && s.Pop < 55))
+                {
+                    string why = storm != null ? null : (feared.Contains(s.Id) ? "its people fled the wyrm" : null);
+                    if (storm != null) w.Chronicle.Add(w, "stormExodus", new EvData { Name = s.Name, X = s.X, Y = s.Y });
+                    else w.Chronicle.Add(w, "abandon", new EvData { Name = s.Name, Tier = s.Tier, Why = why, X = s.X, Y = s.Y });
+                    w.RuinSettlement(s, storm != null ? "storm" : "decline");
+                    var dest = BestNeighbor(w, s);
+                    if (dest != null)
+                    {
+                        dest.Pop += s.Pop * 0.6;
+                        w.Chronicle.Add(w, "migration", new EvData { From = s.Name, To = dest.Name, X = dest.X, Y = dest.Y, Fx = s.X, Fy = s.Y });
+                    }
+                    continue;
+                }
+
+                // Wealth accrues from prosperity; this is what dragons smell.
+                s.Wealth += s.Prosp * s.Pop / 200000;
+            }
+            w.FertDirty = false;
+
+            // --- Colonization (fission), damped by regional crowding.
+            var aliveNow = w.AliveSettlements();
+            foreach (var s in aliveNow)
+            {
+                if (s.Pop > s.Cap * 0.7 && s.Pop > 150 && rng.Chance(0.005))
+                {
+                    int crowd = 0;
+                    foreach (var o in aliveNow)
+                    {
+                        double d2 = (double)(o.X - s.X) * (o.X - s.X) + (double)(o.Y - s.Y) * (o.Y - s.Y);
+                        if (d2 <= 64) crowd++;
+                    }
+                    if (rng.Next() < (crowd - 2) / 10.0) continue; // packed regions stop spilling outward
+                    var site = w.BestSiteNear(s.X, s.Y, 5, 16);
+                    if (site != null)
+                    {
+                        double emig = Math.Max(40, s.Pop * 0.28);
+                        s.Pop -= emig * 0.9;
+                        var child = w.AddSettlement(site.X, site.Y, s.Culture, emig);
+                        w.Chronicle.Add(w, "found", new EvData { Name = child.Name, Parent = s.Name, X = child.X, Y = child.Y, Fx = s.X, Fy = s.Y });
+                    }
+                }
+            }
+
+            // --- Gold: discovery near settlements, mining camps in the wilds.
+            foreach (var v in w.Veins)
+            {
+                if (!v.Revealed)
+                {
+                    var near = w.SettlementNear(v.X, v.Y, 4.5);
+                    if (near != null && rng.Chance(0.02))
+                    {
+                        v.Revealed = true;
+                        near.Gold = true;
+                        near.BoomUntil = w.Tick + 40 * 12;
+                        w.Chronicle.Add(w, "goldFound", new EvData { Name = near.Name, X = v.X, Y = v.Y });
+                        w.Chronicle.Add(w, "boom", new EvData { Name = near.Name, X = near.X, Y = near.Y });
+                        PullMigrants(w, near, 0.12);
+                        w.Dirty.Features = true;
+                    }
+                }
+                else if (w.SettlementNear(v.X, v.Y, 4) == null)
+                {
+                    // A known vein with nobody working it draws the desperate.
+                    var parent = w.SettlementNear(v.X, v.Y, 16);
+                    double chance = parent != null ? 0.012 : 0.004;
+                    if (rng.Chance(chance))
+                    {
+                        var spot = w.CampSiteNear(v.X, v.Y);
+                        if (spot != null)
+                        {
+                            int culture;
+                            if (parent != null) culture = parent.Culture;
+                            else
+                            {
+                                var far = w.SettlementNear(v.X, v.Y, 60);
+                                culture = far != null ? far.Culture : rng.Int(0, Cultures.All.Length - 1);
+                            }
+                            string name = w.Namer.GoldPlace(culture);
+                            var camp = w.AddSettlement(spot.Value.X, spot.Value.Y, culture, parent != null ? 55 : 40, name, gold: true);
+                            camp.BoomUntil = w.Tick + 40 * 12;
+                            w.Chronicle.Add(w, "camp", new EvData { Name = name, Region = w.RegionNameAt(v.X, v.Y, "the high stone"), X = spot.Value.X, Y = spot.Value.Y });
+                            if (parent != null) parent.Pop *= 0.96;
+                        }
+                    }
+                }
+            }
+
+            // --- Dragons: raids.
+            foreach (var d in w.Dragons.ToList())
+            {
+                if (w.Tick - d.LastRaid > d.RaidEvery)
+                {
+                    Settlement target = null;
+                    double tw = 8; // only bother with somewhere worth burning
+                    foreach (var s in w.AliveSettlements())
+                    {
+                        double d2 = (double)(s.X - d.X) * (s.X - d.X) + (double)(s.Y - d.Y) * (s.Y - d.Y);
+                        if (d2 <= RAID_R * RAID_R && s.Wealth + s.Pop / 400 > tw)
+                        {
+                            tw = s.Wealth + s.Pop / 400; target = s;
+                        }
+                    }
+                    d.LastRaid = w.Tick;
+                    d.RaidEvery = rng.Int(60, 140);
+                    if (target != null)
+                    {
+                        w.Chronicle.Add(w, "raid", new EvData { Dragon = d.Name, Name = target.Name, X = target.X, Y = target.Y, Fx = d.X, Fy = d.Y });
+                        target.Pop *= 0.85;
+                        target.Wealth *= 0.75;
+                        if (target.Pop < 400 && rng.Chance(0.5))
+                        {
+                            string alt = w.RuinSettlement(target, "dragon", altName: true);
+                            w.Chronicle.Add(w, "razed", new EvData { Name = target.Name, RuinName = alt, X = target.X, Y = target.Y });
+                            var dest = BestNeighbor(w, target);
+                            if (dest != null)
+                            {
+                                dest.Pop += target.Pop * 0.5;
+                                w.Chronicle.Add(w, "migration", new EvData { From = target.Name, To = dest.Name, X = dest.X, Y = dest.Y, Fx = target.X, Fy = target.Y });
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (w.ClaimsDirtyTick != 0 && w.Tick - w.ClaimsDirtyTick > 24)
+            {
+                w.RecomputeClaims();
+                w.ClaimsDirtyTick = 0;
+            }
+            else if (w.Dirty.Borders && w.ClaimsDirtyTick == 0)
+            {
+                w.ClaimsDirtyTick = w.Tick;
+            }
+        }
+
+        private static void Yearly(World w, Rng rng)
+        {
+            // Lean years: a world-scale harvest cycle.
+            if (w.LeanYears > 0) w.LeanYears--;
+            else if (rng.Chance(0.10)) w.LeanYears = rng.Int(1, 2);
+
+            // Dragon spawning: wealth near mountains breeds trouble.
+            if (w.Dragons.Count < 2 && w.Year >= 60 && w.Tick >= w.DragonCooldownUntil)
+            {
+                foreach (var s in w.AliveSettlements())
+                {
+                    if (s.Wealth < 70) continue;
+                    var m = w.NearestMountain(s.X, s.Y, 6);
+                    if (m == null) continue;
+                    if (rng.Chance(Math.Min(0.05, 0.015 + s.Wealth / 4000)))
+                    {
+                        var d = new Dragon
+                        {
+                            Name = "the wyrm " + w.Namer.Dragon(),
+                            X = m.Value.X, Y = m.Value.Y, BornYear = w.Year,
+                            LastRaid = w.Tick, RaidEvery = rng.Int(48, 110),
+                            RegionName = w.RegionNameAt(m.Value.X, m.Value.Y, "the high peaks"),
+                        };
+                        w.Dragons.Add(d);
+                        w.Chronicle.Add(w, "dragon", new EvData { Dragon = d.Name, Region = d.RegionName, Name = s.Name, X = m.Value.X, Y = m.Value.Y });
+                        w.Dirty.Features = true;
+                        break;
+                    }
+                }
+            }
+
+            // Dragon slaying & departure.
+            foreach (var d in w.Dragons.ToList())
+            {
+                var heroes = new List<Settlement>();
+                foreach (var s in w.AliveSettlements())
+                {
+                    double d2 = (double)(s.X - d.X) * (s.X - d.X) + (double)(s.Y - d.Y) * (s.Y - d.Y);
+                    if (s.Tier >= 2 && d2 <= RAID_R * RAID_R) heroes.Add(s);
+                }
+                var anyNear = w.SettlementNear(d.X, d.Y, 12);
+                if (heroes.Count > 0 && rng.Chance(0.10))
+                {
+                    var home = rng.Pick(heroes);
+                    string hero = "Ser " + w.Namer.Person(home.Culture) + " the Wyrmslayer";
+                    w.Chronicle.Add(w, "slain", new EvData { Hero = hero, Name = home.Name, Dragon = d.Name, Region = d.RegionName, X = d.X, Y = d.Y });
+                    home.Wealth += 35;
+                    home.BoomUntil = Math.Max(home.BoomUntil, w.Tick + 10 * 12);
+                    w.Dragons.Remove(d);
+                    w.DeadLairs.Add((d.X, d.Y));
+                    w.DragonCooldownUntil = w.Tick + 300; // a generation of peace
+                    w.Dirty.Features = true;
+                }
+                else if (anyNear == null && rng.Chance(0.3))
+                {
+                    w.Chronicle.Add(w, "dragonGone", new EvData { Dragon = d.Name, X = d.X, Y = d.Y });
+                    w.Dragons.Remove(d);
+                    w.DeadLairs.Add((d.X, d.Y));
+                    w.DragonCooldownUntil = w.Tick + 300;
+                    w.Dirty.Features = true;
+                }
+            }
+
+            // Roads: nearby sizable settlements link up.
+            int built = 0;
+            var alive = new List<Settlement>();
+            foreach (var s in w.AliveSettlements()) if (s.Tier >= 1) alive.Add(s);
+            for (int i = 0; i < alive.Count && built < 2; i++)
+            {
+                for (int j = i + 1; j < alive.Count && built < 2; j++)
+                {
+                    var a = alive[i]; var b = alive[j];
+                    double d2 = (double)(a.X - b.X) * (a.X - b.X) + (double)(a.Y - b.Y) * (a.Y - b.Y);
+                    if (d2 > 13 * 13) continue;
+                    int degA = w.RoadDeg.TryGetValue(a.Id, out int da) ? da : 0;
+                    int degB = w.RoadDeg.TryGetValue(b.Id, out int db) ? db : 0;
+                    if (degA >= 4 || degB >= 4) continue;
+                    bool exists = false;
+                    foreach (var r in w.Roads)
+                        if ((r.A == a.Id && r.B == b.Id) || (r.A == b.Id && r.B == a.Id)) { exists = true; break; }
+                    if (exists) continue;
+                    if (!rng.Chance(0.25)) continue;
+                    var pts = RoadPath(w, a, b);
+                    if (pts == null) continue;
+                    w.Roads.Add(new Road { A = a.Id, B = b.Id, Pts = pts });
+                    w.RoadDeg[a.Id] = degA + 1;
+                    w.RoadDeg[b.Id] = degB + 1;
+                    w.Chronicle.Add(w, "road", new EvData { A = a.Name, B = b.Name, X = (a.X + b.X) / 2.0, Y = (a.Y + b.Y) / 2.0 });
+                    w.Dirty.Features = true;
+                    built++;
+                }
+            }
+        }
+
+        private static List<(double X, double Y)> RoadPath(World w, Settlement a, Settlement b)
+        {
+            // Sampled straight-ish path; reject if it wades through open water.
+            int steps = (int)Math.Ceiling(Math.Sqrt((double)(b.X - a.X) * (b.X - a.X) + (double)(b.Y - a.Y) * (b.Y - a.Y)) * 2);
+            var pts = new List<(double X, double Y)>();
+            int wet = 0;
+            for (int k = 0; k <= steps; k++)
+            {
+                double t = (double)k / steps;
+                double x = a.X + (b.X - a.X) * t;
+                double y = a.Y + (b.Y - a.Y) * t;
+                // JS Math.round rounds half toward +infinity.
+                if (!w.IsLandAt((int)Math.Floor(x + 0.5), (int)Math.Floor(y + 0.5))) wet++;
+                if (wet > 1) return null;
+                pts.Add((x, y));
+            }
+            return pts;
+        }
+
+        private static Settlement BestNeighbor(World w, Settlement s)
+        {
+            Settlement best = null;
+            double bd = double.PositiveInfinity;
+            foreach (var o in w.Settlements)
+            {
+                if (o.Ruined || ReferenceEquals(o, s)) continue;
+                if (w.StormAt(o.X, o.Y) != null) continue;
+                double d2 = (double)(o.X - s.X) * (o.X - s.X) + (double)(o.Y - s.Y) * (o.Y - s.Y);
+                if (d2 < bd) { bd = d2; best = o; }
+            }
+            return best;
+        }
+
+        private static void PullMigrants(World w, Settlement target, double frac)
+        {
+            var near = w.AliveSettlements()
+                .Where(s => !ReferenceEquals(s, target) &&
+                    (double)(s.X - target.X) * (s.X - target.X) + (double)(s.Y - target.Y) * (s.Y - target.Y) < 400)
+                .OrderByDescending(s => s.Pop) // stable, like JS sort
+                .Take(2);
+            foreach (var s in near)
+            {
+                double moved = s.Pop * frac * 0.5;
+                s.Pop -= moved;
+                target.Pop += moved;
+            }
+        }
+
+        public static void RunYears(World w, int years, Action<World> onYear = null)
+        {
+            for (int i = 0; i < years * 12; i++)
+            {
+                Tick(w);
+                if (onYear != null && w.Tick % 12 == 0) onYear(w);
+            }
+        }
+    }
+}

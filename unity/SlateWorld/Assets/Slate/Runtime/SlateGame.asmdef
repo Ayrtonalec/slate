@@ -1,0 +1,16 @@
+{
+    "name": "SlateGame",
+    "rootNamespace": "Slate.Game",
+    "references": [
+        "SlateSim"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

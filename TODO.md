@@ -37,11 +37,15 @@ properly investigated ("uitzoeken"), not assumed. Judge against THESE criteria:
       no royalty ever (vs UE's 5% > $1M gross, which fails the founder's
       no-percentages criterion). Full evidence table in design doc 06,
       "T1 engine validation".
-- [ ] T1.1 Port the sim core first (T2) so the spike tests something real.
-- [ ] T1.2 Unity spike: load SlateSim, render terrain + 300 settlement markers +
-      1,000 crowd agents (DOTS), camera with two zoom bands, fast-forward 500 years
-      in-editor. Measure FPS, build size, iteration feel, founder comfort.
-      Target URP (HDRP is in maintenance mode as of Unity's 2026 render strategy).
+- [x] T1.1 Port the sim core first (T2) so the spike tests something real →
+      done 2026-07-15, see T2.
+- [~] T1.2 Unity spike → **first playable exists** (2026-07-15): `unity/SlateWorld`
+      loads SlateSim, renders the full world (terrain mesh + sea + forests +
+      settlements as procedural architecture), two zoom bands in one camera,
+      walking villagers (GPU-instanced, not DOTS yet), live chronicle HUD.
+      Remaining for the formal spike verdict: founder plays it (comfort check),
+      FPS measurement at Settlement zoom, and a DOTS pass if crowd counts
+      need to grow past ~1–2k.
 - [ ] T1.3 Only if Unity disappoints (visual bar or perf): mirror the spike in UE5.
 - [x] T1.4 Write the decision + evidence into design doc 06 → done 2026-07-15
       ("T1 engine validation" section). SETTLED on paper; the T1.2 spike is the
@@ -49,15 +53,21 @@ properly investigated ("uitzoeken"), not assumed. Judge against THESE criteria:
 
 ## T2 — Port the sim core JS → C# (engine-agnostic, needed regardless of T1)
 
-- [ ] .NET 8 (or 9) class library `SlateSim` + test project porting
-      `god-sim-prototype/test/headless.js` one assert at a time.
-- [ ] Keep the laws: labeled RNG streams, fixed tick order (climate → settlements →
-      colonization → gold → dragons → roads → claims), no wall-clock/OS randomness.
-- [ ] Parity check with the JS prototype where practical (same-seed event sequence),
-      then the C# core becomes the single source of truth and the JS version is
-      frozen as reference.
-- [ ] CI: headless 500-year × 5-seed battery green before any merge (same spirit as
-      the JS suite: sanity ranges, determinism replay, divergence spread, cascades).
+- [x] (2026-07-15) `SlateSim` exists as a Unity local package (`SlateSim/` repo
+      root, `com.slate.sim`) with `noEngineReferences: true` — the compiler now
+      enforces engine-agnosticism. All Phase 0 systems ported: rng, names,
+      worldgen, world, sim, chronicle, powers.
+- [x] Laws kept: labeled RNG streams (`new Rng(seed, "label")`, bit-identical
+      mulberry32), fixed tick order, no wall-clock/OS randomness. JS quirks
+      preserved deliberately (stable sorts where JS TimSort was load-bearing,
+      JS-style `Math.round`, float32 heightmap storage).
+- [x] Test battery ported to NUnit EditMode (`SlateSim/Tests/Editor/`): 5 seeds ×
+      500y sanity + divergence + determinism replay + 3 god-power cascades +
+      markdown export. **6/6 green, ~4s.** Bit-level JS↔C# parity NOT verified
+      (Math.Pow may differ in last ulp) — C#-internal determinism is what the
+      test enforces; JS prototype frozen as reference spec.
+- [ ] CI: run the battery on every push (GitHub Actions needs a Unity license
+      setup, or port tests to a plain dotnet project once .NET SDK is installed).
 
 ## T3 — Living-world v1: the aliveness contract (in the real game)
 
@@ -84,11 +94,14 @@ must do ALL of this to itself, no god input:
 
 ## T5 — Dual-dev setup (founder + Claude on one project)
 
-- [ ] Unity project skeleton with `SlateSim` as a local package; **force text
-      serialization** for scenes/prefabs (AI-editability + sane diffs).
-- [ ] Git LFS for binaries (textures/models/audio) + `.gitattributes`.
-- [ ] Founder onboarding notes: Unity Hub install, opening the project, play mode,
-      where gameplay code lives, how to run the sim tests.
+- [x] (2026-07-15) Unity project `unity/SlateWorld` (Unity 6000.5.4f1, URP) with
+      `SlateSim` as local package; text serialization on; Unity .gitignore;
+      headless setup script (`Slate → Setup Project`, also `-executeMethod`
+      Slate.Game.Editor.ProjectSetup.BuildAll).
+- [x] (2026-07-15) Founder onboarding notes: `unity/README.md` (open project,
+      controls, where code lives, how to run tests, the rules).
+- [ ] Git LFS for binaries (textures/models/audio) + `.gitattributes` — do this
+      BEFORE the first asset pack import.
 - [ ] Commit conventions + branch flow simple enough for two devs (founder + Claude).
 
 ## T6 — Keep the prototype as the cheap design playground

@@ -1,0 +1,8 @@
+{
+  "name": "com.slate.sim",
+  "version": "0.1.0",
+  "displayName": "SLATE Simulation Core",
+  "description": "Engine-agnostic deterministic world simulation for SLATE. Ported from the Phase 0 JS prototype (god-sim-prototype/src), which remains the executable spec. No UnityEngine references allowed — the sim must stay headless-testable.",
+  "unity": "6000.0",
+  "author": { "name": "SLATE" }
+}
