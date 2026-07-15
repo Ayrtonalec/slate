@@ -43,7 +43,7 @@ namespace Slate.Sim
                 case "found": return (1, "plain", $"{d.Name} founded by settlers out of {d.Parent}.");
                 case "camp": return (2, "plain", $"A mining camp takes root beneath {d.Region}; they call it {d.Name}.");
                 case "village": return (1, "plain", $"{d.Name} grows into a proper village.");
-                case "town": return (2, "plain", $"{d.Name} raises walls — a town of some {d.Pop} souls.");
+                case "town": return (2, "plain", $"{d.Name} has grown into a town of some {d.Pop} souls."); // walls are earned separately now
                 case "city": return (3, "plain", $"{d.Name} is now a city, greatest of {Cultures.All[d.Culture].Demonym}' holdings.");
                 case "goldSeed": return (3, "god", $"A vein of gold blooms in the stone of {d.Region}. The mountain did not hold it yesterday.");
                 case "goldFound": return (2, "plain", $"Prospectors strike gold near {d.Name}. Hungry men arrive within the season.");
@@ -65,6 +65,8 @@ namespace Slate.Sim
                 case "sacked": return (3, "doom", $"{d.Name} is put to the torch by {Cultures.All[d.Culture].Demonym}. The survivors scatter into the hills.");
                 case "defended": return (2, "plain", $"{d.Name} throws back {Cultures.All[d.Culture].Demonym}; the fields are red, but the walls hold.");
                 case "warOver": return (1, "plain", $"The warband out of {d.From} breaks up and drifts home; there was nothing left to fight for.");
+                case "palisade": return (1, "plain", $"{d.Name} rings itself with a timber palisade; the times demand it.");
+                case "stonewalls": return (2, "plain", $"{d.Name} raises walls of dressed stone. Masons eat well for a decade.");
                 default: throw new ArgumentException("unknown chronicle type: " + type);
             }
         }

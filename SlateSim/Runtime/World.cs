@@ -32,6 +32,9 @@ namespace Slate.Sim
         public bool Fish;
         public bool Ruined;
         public int RuinedYear;
+        public double SoilLuck = 1;  // founding-time land quality; no two valleys are equal
+        public int Walls;            // 0 open, 1 palisade, 2 stone — built, paid for, never free
+        public int Hinterland;       // satellite settlements feeding this market (recounted yearly)
     }
 
     public sealed class Ruin
@@ -423,6 +426,7 @@ namespace Slate.Sim
                 Gold = gold,
                 FoundedYear = Year,
                 Fish = HasFishAdj(x, y),
+                SoilLuck = RngSim.Range(0.8, 1.25),
             };
             Settlements.Add(s);
             SettlementsById[s.Id] = s;

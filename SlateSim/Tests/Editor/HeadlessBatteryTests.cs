@@ -181,6 +181,37 @@ namespace Slate.Sim.Tests
         }
 
         [Test]
+        public void Settlements_AreHeterogeneous_NotACarpetOfEqualVillages()
+        {
+            // Realism guard: a district center must tower over the median hamlet
+            // (Zipf-ish hierarchy), and walls must be a paid-for choice — some
+            // sizable towns walled, others open.
+            int walled = 0, open = 0;
+            foreach (int seed in new[] { 1, 7, 42 })
+            {
+                var w = World.Create(seed);
+                Simulation.RunYears(w, 400);
+                var alive = w.AliveSettlements().OrderByDescending(s => s.Pop).ToList();
+                Assert.That(alive.Count, Is.GreaterThan(10), $"seed {seed}: enough settlements to compare");
+                double top = alive[0].Pop;
+                double median = alive[alive.Count / 2].Pop;
+                TestContext.Out.WriteLine(
+                    $"seed {seed}: top {Math.Round(top)}, median {Math.Round(median)}, ratio {top / median:F1}");
+                Assert.That(top / median, Is.GreaterThanOrEqualTo(4.0),
+                    $"seed {seed}: a real center towers over the median village");
+
+                foreach (var s in alive)
+                {
+                    if (s.Pop < 650) continue;
+                    if (s.Walls > 0) walled++; else open++;
+                }
+            }
+            TestContext.Out.WriteLine($"battery: {walled} walled, {open} open (pop > 650)");
+            Assert.That(walled, Is.GreaterThanOrEqualTo(1), "some towns pay for walls");
+            Assert.That(open, Is.GreaterThanOrEqualTo(1), "some towns never had to");
+        }
+
+        [Test]
         public void Chronicle_ExportsToMarkdown()
         {
             var w = World.Create(7);

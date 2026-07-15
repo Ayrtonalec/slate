@@ -1,8 +1,9 @@
 // SLATE — settlements as clustered procedural architecture, GPU-instanced.
-// A hamlet is a handful of huts; a village gains a hall; a town raises walls
-// and a tower; a city gets a taller ring and more towers. Roof color is the
-// culture's banner color, so the map reads politically at a glance — the
-// Theater Principle: the sim only knows "pop 1834, tier 2"; this performs it.
+// No two look alike: each has its own footprint (stretched along its own
+// axis), density, and roof shade within its culture's color. Defenses are
+// drawn from the sim's Walls field — a timber palisade if the town paid for
+// one, dressed stone if it paid for more, nothing if it never had to. The
+// Theater Principle: the sim knows "pop 1834, walls 1"; this performs it.
 using System.Collections.Generic;
 using UnityEngine;
 using Slate.Sim;
@@ -13,12 +14,13 @@ namespace Slate.Game
     {
         private WorldRunner _runner;
         private Mesh _body, _roof, _tower, _wall;
-        private Material _plasterMat, _wallMat, _ruinMat;
-        private Material[] _roofMats;
+        private Material _plasterMat, _wallMat, _palisadeMat, _ruinMat;
+        private Material[] _roofMats; // 4 cultures x 3 shades
 
         private readonly List<Matrix4x4> _bodies = new List<Matrix4x4>();
-        private readonly List<Matrix4x4>[] _roofs = new List<Matrix4x4>[4];
+        private readonly List<Matrix4x4>[] _roofs = new List<Matrix4x4>[12];
         private readonly List<Matrix4x4> _walls = new List<Matrix4x4>();
+        private readonly List<Matrix4x4> _palisades = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _ruins = new List<Matrix4x4>();
         private long _signature = -1;
 
@@ -32,13 +34,16 @@ namespace Slate.Game
 
             _plasterMat = MakeLit(Palette.PlasterWarm);
             _wallMat = MakeLit(Palette.WallStone);
+            _palisadeMat = MakeLit(new Color(0.34f, 0.26f, 0.18f)); // weathered timber
             _ruinMat = MakeLit(Palette.RuinChar);
-            _roofMats = new Material[4];
+            _roofMats = new Material[12];
+            float[] shades = { 0.82f, 1.0f, 1.18f };
             for (int c = 0; c < 4; c++)
-            {
-                _roofs[c] = new List<Matrix4x4>();
-                _roofMats[c] = MakeLit(Palette.CultureColor(c) * 1.05f);
-            }
+                for (int k = 0; k < 3; k++)
+                {
+                    _roofs[c * 3 + k] = new List<Matrix4x4>();
+                    _roofMats[c * 3 + k] = MakeLit(Palette.CultureColor(c) * shades[k] * 1.05f);
+                }
         }
 
         public static Material MakeLit(Color c)
@@ -62,7 +67,8 @@ namespace Slate.Game
                 if (s.Ruined) continue;
                 sig = sig * 31 + s.Id;
                 sig = sig * 31 + s.Tier;
-                sig = sig * 31 + s.Culture; // conquest re-tints the roofs
+                sig = sig * 31 + s.Culture;         // conquest re-tints the roofs
+                sig = sig * 31 + s.Walls;           // defenses appear when paid for
                 sig = sig * 31 + (long)(s.Pop / 130); // house count buckets
             }
             if (sig != _signature) { _signature = sig; Rebuild(w); }
@@ -72,8 +78,8 @@ namespace Slate.Game
 
         private void Rebuild(World w)
         {
-            _bodies.Clear(); _walls.Clear(); _ruins.Clear();
-            for (int c = 0; c < 4; c++) _roofs[c].Clear();
+            _bodies.Clear(); _walls.Clear(); _palisades.Clear(); _ruins.Clear();
+            for (int i = 0; i < 12; i++) _roofs[i].Clear();
 
             foreach (var s in w.Settlements)
             {
@@ -87,10 +93,21 @@ namespace Slate.Game
         {
             var rnd = new System.Random(unchecked(w.Seed * 486187739 + s.Id * 1000003));
             Vector3 center = TerrainSampler.CellToWorld(s.X, s.Y);
+
+            // --- Personality: every place has its own shape.
+            float elong = 1.05f + (float)rnd.NextDouble() * 0.45f;   // stretched footprint
+            float density = 0.75f + (float)rnd.NextDouble() * 0.5f;  // tight or sprawling
+            int shade = rnd.Next(3);                                  // roof shade in the culture color
+            float axisDeg = (float)(rnd.NextDouble() * 180);
+            // Towns on the water stretch along their shore.
+            var shoreDir = ShoreDirection(w, s);
+            if (shoreDir.HasValue) axisDeg = shoreDir.Value + 90f;
+            var axis = Quaternion.Euler(0, axisDeg, 0);
+
             float radius = TerrainSampler.CellSize * (0.40f + 0.34f * s.Tier)
                 + Mathf.Min(6f, (float)s.Pop / 900f);
-            int houses = 2 + Mathf.Min(52, (int)(s.Pop / 70));
-            var roofList = _roofs[s.Culture];
+            int houses = Mathf.Max(2, (int)((2 + Mathf.Min(52, (int)(s.Pop / 70))) * density));
+            var roofList = _roofs[s.Culture * 3 + shade];
 
             for (int i = 0; i < houses; i++)
             {
@@ -100,7 +117,7 @@ namespace Slate.Game
                 {
                     float ang = (float)(rnd.NextDouble() * Mathf.PI * 2);
                     float dist = radius * Mathf.Sqrt((float)rnd.NextDouble());
-                    pos = center + new Vector3(Mathf.Cos(ang) * dist, 0, Mathf.Sin(ang) * dist);
+                    pos = center + axis * new Vector3(Mathf.Cos(ang) * dist * elong, 0, Mathf.Sin(ang) * dist * 0.85f);
                     pos.y = TerrainSampler.GroundY(pos.x, pos.z);
                     ok = pos.y > 0.35f;
                 }
@@ -114,46 +131,83 @@ namespace Slate.Game
                 roofList.Add(Matrix4x4.TRS(pos + Vector3.up * sh, rot, new Vector3(sw, sh * 0.85f, sd)));
             }
 
-            // The hall: one big roof at the center from village up.
+            // The hall: one big roof at the center from village up. Rich towns build bigger.
             if (s.Tier >= 1)
             {
                 Vector3 pos = center; pos.y = TerrainSampler.GroundY(pos.x, pos.z);
                 if (pos.y > 0.35f)
                 {
-                    var rot = Quaternion.Euler(0, (float)(rnd.NextDouble() * 360), 0);
-                    float hw = 3.4f + s.Tier * 0.6f, hh = 2.6f + s.Tier * 0.5f;
+                    var rot = Quaternion.Euler(0, axisDeg, 0);
+                    float wealthBonus = Mathf.Min(1.2f, (float)s.Wealth / 60f);
+                    float hw = 3.2f + s.Tier * 0.6f + wealthBonus, hh = 2.5f + s.Tier * 0.5f + wealthBonus * 0.5f;
                     _bodies.Add(Matrix4x4.TRS(pos, rot, new Vector3(hw, hh, hw * 1.25f)));
-                    _roofs[s.Culture].Add(Matrix4x4.TRS(pos + Vector3.up * hh, rot, new Vector3(hw, hh, hw * 1.25f)));
+                    _roofs[s.Culture * 3 + shade].Add(Matrix4x4.TRS(pos + Vector3.up * hh, rot, new Vector3(hw, hh, hw * 1.25f)));
                 }
             }
 
-            // Walls and towers for towns and cities.
-            if (s.Tier >= 2)
+            // --- Defenses: only what the sim says was actually built and paid for.
+            if (s.Walls >= 1)
             {
-                float rw = radius + 3.8f;
-                int segs = s.Tier == 3 ? 30 : 22;
-                float wallH = s.Tier == 3 ? 3.4f : 2.4f;
-                float arc = 2f * Mathf.PI * rw / segs;
-                for (int i = 0; i < segs; i++)
+                float rx = radius * elong + 3.6f;
+                float rz = radius * 0.85f + 3.6f;
+                if (s.Walls == 1)
                 {
-                    float ang = i * Mathf.PI * 2 / segs;
-                    Vector3 pos = center + new Vector3(Mathf.Cos(ang) * rw, 0, Mathf.Sin(ang) * rw);
-                    pos.y = TerrainSampler.GroundY(pos.x, pos.z);
-                    if (pos.y < 0.3f) continue; // walls stop at the waterline
-                    var rot = Quaternion.Euler(0, -ang * Mathf.Rad2Deg + 90f, 0);
-                    _walls.Add(Matrix4x4.TRS(pos + Vector3.up * wallH * 0.5f, rot, new Vector3(arc * 1.06f, wallH, 0.9f)));
+                    // Timber palisade: a ring of posts.
+                    float circ = Mathf.PI * (rx + rz);
+                    int posts = Mathf.Max(20, (int)(circ / 1.15f));
+                    for (int i = 0; i < posts; i++)
+                    {
+                        float ang = i * Mathf.PI * 2 / posts;
+                        Vector3 pos = center + axis * new Vector3(Mathf.Cos(ang) * rx, 0, Mathf.Sin(ang) * rz);
+                        pos.y = TerrainSampler.GroundY(pos.x, pos.z);
+                        if (pos.y < 0.3f) continue;
+                        float h = 2.0f + (float)SlateRng.Hash2(s.Id, i, 0xFAB) * 0.5f;
+                        _palisades.Add(Matrix4x4.TRS(pos + Vector3.up * h * 0.5f, Quaternion.identity, new Vector3(0.38f, h, 0.38f)));
+                    }
                 }
-                int towers = s.Tier == 3 ? 6 : 4;
-                for (int i = 0; i < towers; i++)
+                else
                 {
-                    float ang = i * Mathf.PI * 2 / towers + 0.35f;
-                    Vector3 pos = center + new Vector3(Mathf.Cos(ang) * rw, 0, Mathf.Sin(ang) * rw);
-                    pos.y = TerrainSampler.GroundY(pos.x, pos.z);
-                    if (pos.y < 0.3f) continue;
-                    float th = s.Tier == 3 ? 7.5f : 5.5f;
-                    _walls.Add(Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(2.6f, th, 2.6f)));
+                    // Dressed stone: slabs and towers.
+                    float circ = Mathf.PI * (rx + rz);
+                    int segs = Mathf.Max(18, (int)(circ / 5.2f));
+                    float wallH = s.Tier >= 3 ? 3.6f : 2.6f;
+                    for (int i = 0; i < segs; i++)
+                    {
+                        float ang = i * Mathf.PI * 2 / segs;
+                        Vector3 pos = center + axis * new Vector3(Mathf.Cos(ang) * rx, 0, Mathf.Sin(ang) * rz);
+                        pos.y = TerrainSampler.GroundY(pos.x, pos.z);
+                        if (pos.y < 0.3f) continue;
+                        Vector3 tangent = axis * new Vector3(-Mathf.Sin(ang) * rx, 0, Mathf.Cos(ang) * rz);
+                        var rot = Quaternion.LookRotation(tangent.normalized, Vector3.up) * Quaternion.Euler(0, 90, 0);
+                        _walls.Add(Matrix4x4.TRS(pos + Vector3.up * wallH * 0.5f, rot, new Vector3(circ / segs * 1.08f, wallH, 0.9f)));
+                    }
+                    int towers = s.Tier >= 3 ? 6 : 4;
+                    for (int i = 0; i < towers; i++)
+                    {
+                        float ang = i * Mathf.PI * 2 / towers + 0.35f;
+                        Vector3 pos = center + axis * new Vector3(Mathf.Cos(ang) * rx, 0, Mathf.Sin(ang) * rz);
+                        pos.y = TerrainSampler.GroundY(pos.x, pos.z);
+                        if (pos.y < 0.3f) continue;
+                        float th = s.Tier >= 3 ? 7.5f : 5.5f;
+                        _walls.Add(Matrix4x4.TRS(pos, Quaternion.identity, new Vector3(2.6f, th, 2.6f)));
+                    }
                 }
             }
+        }
+
+        // Direction (yaw degrees) from the settlement toward nearby open water, if any.
+        private float? ShoreDirection(World w, Settlement s)
+        {
+            for (int r = 1; r <= 3; r++)
+                for (int dy = -r; dy <= r; dy++)
+                    for (int dx = -r; dx <= r; dx++)
+                    {
+                        if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != r) continue;
+                        int nx = s.X + dx, ny = s.Y + dy;
+                        if (!w.InB(nx, ny) || w.HeightMap[ny * w.W + nx] > w.Sea) continue;
+                        return Mathf.Atan2(dx, dy) * Mathf.Rad2Deg;
+                    }
+            return null;
         }
 
         private void BuildRuin(World w, Ruin r)
@@ -177,8 +231,9 @@ namespace Slate.Game
         private void Draw()
         {
             DrawGroup(_body, _plasterMat, _bodies);
-            for (int c = 0; c < 4; c++) DrawGroup(_roof, _roofMats[c], _roofs[c]);
+            for (int i = 0; i < 12; i++) DrawGroup(_roof, _roofMats[i], _roofs[i]);
             DrawGroup(_wall, _wallMat, _walls);
+            DrawGroup(_wall, _palisadeMat, _palisades);
             DrawGroup(_wall, _ruinMat, _ruins);
         }
 

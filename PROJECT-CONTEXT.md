@@ -298,6 +298,21 @@ headless (`ProjectSetup.BuildAll`) and screenshots via `ScreenshotRunner.Run`.
 Founder onboarding: `unity/README.md`. The founder's Unity Hub scratch project
 (`unity/My project`, HDRP template) is git-ignored — superseded by SlateWorld.
 
+**Living-world feedback loop (2026-07-15, founder playtesting live):** the founder
+played the first Unity build and drove three rounds of fixes, all shipped same-day:
+(1) **wars v1** in the C# core (tension → visible marching warband → conquest with
+culture-flipped roofs / sack / held walls; own "war" rng stream; tick order now
+… dragons → wars → roads …) plus visible farmland with seasonal crop colors,
+farmer/hunter villager roles, and road caravans; (2) **Manor Lords pacing** —
+speed I = 1 month ≈ 12 real seconds (armies get per-frame visual interpolation so
+they march instead of teleport), II = 1 y/s, III = 12 y/s; (3) **settlement
+heterogeneity** — SoilLuck at founding, market pull (hamlet belts around district
+centers, Zipf-ish size spread), smaller daughter colonies, and walls as a paid
+choice driven by threat + wealth (palisade → stone; open towns exist and fall
+easier in war; renderer draws palisades vs stone and gives every settlement its
+own footprint axis/density/roof shade). Battery grew to 9 tests. The founder's
+"chaotic warlord burns it down" idea is parked in TODO T3 for Figures v1.
+
 **T1 update (2026-07-15, first local session):** the founder re-weighted the
 engine criteria (multiplayer, asset creation with Claude Code, Claude Code
 compatibility, performance, and *no revenue-percentage royalties*) and asked for

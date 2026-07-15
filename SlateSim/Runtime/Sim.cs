@@ -48,12 +48,15 @@ namespace Slate.Sim
 
                 int deg = w.RoadDeg.TryGetValue(s.Id, out int dv) ? dv : 0;
                 bool boom = w.Tick < s.BoomUntil;
-                s.Prosp = 1 + 0.15 * deg + (s.Gold ? 2.5 : 0) + (s.Fish ? 0.3 : 0) + s.Tier * 0.15 + (boom ? 1 : 0);
+                // A market town is fed by its hinterland: trade raises the ceiling
+                // its own fields could never carry (how real centers outgrew villages).
+                s.Prosp = 1 + 0.15 * deg + (s.Gold ? 2.5 : 0) + (s.Fish ? 0.3 : 0) + s.Tier * 0.15 + (boom ? 1 : 0)
+                    + 0.06 * Math.Min(8, s.Hinterland);
 
                 // Food capacity: staggered recompute, or forced when fertility changed.
                 if (w.FertDirty || (w.Tick + s.Id) % 24 == 0)
                 {
-                    double cap = w.FertAround(s.X, s.Y, 3) * 26;
+                    double cap = w.FertAround(s.X, s.Y, 3) * 26 * s.SoilLuck; // no two valleys are equal
                     if (s.Fish && storm == null) cap += 170;
                     cap *= 1 + 0.7 * Math.Max(0, s.Prosp - 1); // trade feeds cities beyond what fields carry
                     if (w.LeanYears > 0) cap *= 0.85;
@@ -148,7 +151,9 @@ namespace Slate.Sim
                     var site = w.BestSiteNear(s.X, s.Y, 5, 16);
                     if (site != null)
                     {
-                        double emig = Math.Max(40, s.Pop * 0.28);
+                        // Daughter settlements start small — a few families with a cart,
+                        // not half the town. Most stay hamlets in the mother's shadow.
+                        double emig = Math.Max(35, s.Pop * 0.16);
                         s.Pop -= emig * 0.9;
                         var child = w.AddSettlement(site.X, site.Y, s.Culture, emig);
                         w.Chronicle.Add(w, "found", new EvData { Name = child.Name, Parent = s.Name, X = child.X, Y = child.Y, Fx = s.X, Fy = s.Y });
@@ -347,8 +352,9 @@ namespace Slate.Sim
                     continue;
                 }
 
-                // Battle at the gates. Walls count; so does hunger on the march.
-                double defense = target.Pop * (target.Tier >= 2 ? 0.9 : 0.55);
+                // Battle at the gates. Real walls count: an open town is easy meat,
+                // a palisade helps, dressed stone doubles the defenders' worth.
+                double defense = target.Pop * (0.5 + 0.25 * target.Walls);
                 double attack = a.Size * 1.35;
                 bool attackerWins = war.Next() < attack / (attack + defense);
                 w.TruceUntil[PairKey(a.Culture, target.Culture)] = w.Tick + TruceYears * 12;
@@ -448,6 +454,66 @@ namespace Slate.Sim
                     w.Dragons.Remove(d);
                     w.DeadLairs.Add((d.X, d.Y));
                     w.DragonCooldownUntil = w.Tick + 300;
+                    w.Dirty.Features = true;
+                }
+            }
+
+            // Market pull: the district's center siphons folk from its satellites —
+            // hamlet belts form around market towns and sizes spread out (Zipf).
+            {
+                var district = w.AliveSettlements();
+                foreach (var s in district) s.Hinterland = 0;
+                foreach (var s in district)
+                {
+                    if (s.Pop < 60) continue;
+                    Settlement magnet = null;
+                    foreach (var o in district)
+                    {
+                        if (ReferenceEquals(o, s) || o.Culture != s.Culture) continue;
+                        double d2 = (double)(o.X - s.X) * (o.X - s.X) + (double)(o.Y - s.Y) * (o.Y - s.Y);
+                        if (d2 <= 49 && o.Pop > s.Pop * 1.8 && (magnet == null || o.Pop > magnet.Pop)) magnet = o;
+                    }
+                    if (magnet != null)
+                    {
+                        double moved = s.Pop * 0.007;
+                        s.Pop -= moved;
+                        magnet.Pop += moved;
+                        magnet.Hinterland++; // the market lives off its satellites
+                    }
+                }
+            }
+
+            // Walls: built when threat and wealth meet — never a free tier upgrade.
+            // Open towns exist, and they are the ones that fall.
+            foreach (var s in w.AliveSettlements())
+            {
+                if (s.Walls >= 2) continue;
+                bool threat = false;
+                foreach (var o in w.AliveSettlements())
+                {
+                    if (o.Culture == s.Culture) continue;
+                    double d2 = (double)(o.X - s.X) * (o.X - s.X) + (double)(o.Y - s.Y) * (o.Y - s.Y);
+                    if (d2 <= 12 * 12) { threat = true; break; }
+                }
+                if (!threat)
+                    foreach (var d in w.Dragons)
+                    {
+                        double d2 = (double)(d.X - s.X) * (d.X - s.X) + (double)(d.Y - s.Y) * (d.Y - s.Y);
+                        if (d2 <= 12 * 12) { threat = true; break; }
+                    }
+
+                if (s.Walls == 0 && s.Pop > 650 && (threat || s.Wealth > 25) && s.Wealth >= 8 && rng.Chance(0.15))
+                {
+                    s.Walls = 1;
+                    s.Wealth -= 6;
+                    w.Chronicle.Add(w, "palisade", new EvData { Name = s.Name, X = s.X, Y = s.Y });
+                    w.Dirty.Features = true;
+                }
+                else if (s.Walls == 1 && s.Tier >= 2 && (threat || s.Wealth > 60) && s.Wealth >= 25 && rng.Chance(0.08))
+                {
+                    s.Walls = 2;
+                    s.Wealth -= 20;
+                    w.Chronicle.Add(w, "stonewalls", new EvData { Name = s.Name, X = s.X, Y = s.Y });
                     w.Dirty.Features = true;
                 }
             }
