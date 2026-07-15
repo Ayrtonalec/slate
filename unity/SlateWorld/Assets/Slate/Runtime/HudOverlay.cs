@@ -69,8 +69,9 @@ namespace Slate.Game
             GUI.DrawTexture(new Rect(12, 12, 250, 58), Texture2D.whiteTexture);
             GUI.color = Color.white;
             Shadowed(new Rect(24, 18, 240, 28), $"Year {w.Year} · {w.MonthName()}", _headStyle);
+            string pace = _runner.speedIndex == 0 ? "a month ≈ 12s" : _runner.speedIndex == 1 ? "1 year/s" : "12 years/s";
             Shadowed(new Rect(24, 46, 240, 18),
-                _runner.paused ? "❚❚ paused" : $"▶ speed {_runner.SpeedLabel}   ·   seed {w.Seed}", _hintStyle);
+                _runner.paused ? "❚❚ paused" : $"▶ speed {_runner.SpeedLabel} ({pace})   ·   seed {w.Seed}", _hintStyle);
 
             // --- Chronicle feed (top-right).
             float y = 14;

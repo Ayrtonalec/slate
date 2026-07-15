@@ -15,6 +15,11 @@ namespace Slate.Game
         private Material[] _flagMats;
         private readonly List<Matrix4x4>[] _soldiers = new List<Matrix4x4>[4];
 
+        // The sim steps armies once a month; on screen they must march every
+        // frame. Visual positions chase the sim position at true march speed.
+        private readonly Dictionary<int, Vector3> _visualPos = new Dictionary<int, Vector3>();
+        private readonly List<int> _stale = new List<int>();
+
         public void Init(WorldRunner runner)
         {
             _runner = runner;
@@ -40,9 +45,18 @@ namespace Slate.Game
             for (int c = 0; c < 4; c++) _soldiers[c].Clear();
             float t = Time.time;
 
+            // March speed in world units per real second, at the current sim speed.
+            float marchSpeed = (float)Simulation.ArmySpeedCellsPerMonth
+                * TerrainSampler.CellSize * _runner.MonthsPerSecond;
+
             foreach (var a in w.Armies)
             {
-                Vector3 pos = TerrainSampler.CellToWorld(a.X, a.Y);
+                Vector3 simPos = TerrainSampler.CellToWorld(a.X, a.Y);
+                if (!_visualPos.TryGetValue(a.Id, out Vector3 pos)) pos = simPos;
+                // Chase the sim position smoothly; snap if we fell an age behind.
+                pos = Vector3.MoveTowards(pos, simPos, marchSpeed * Time.deltaTime * 1.25f);
+                if ((pos - simPos).sqrMagnitude > 20f * 20f) pos = simPos;
+                _visualPos[a.Id] = pos;
                 pos.y = TerrainSampler.GroundY(pos.x, pos.z);
                 if (pos.y < 0.2f) pos.y = 0.2f;
 
@@ -94,6 +108,16 @@ namespace Slate.Game
 
             for (int c = 0; c < 4; c++)
                 SettlementRenderer.DrawGroup(_soldier, _soldierMats[c], _soldiers[c]);
+
+            // Forget positions of armies that fought their battle or disbanded.
+            _stale.Clear();
+            foreach (int id in _visualPos.Keys)
+            {
+                bool alive = false;
+                foreach (var a in w.Armies) if (a.Id == id) { alive = true; break; }
+                if (!alive) _stale.Add(id);
+            }
+            foreach (int id in _stale) _visualPos.Remove(id);
         }
     }
 }

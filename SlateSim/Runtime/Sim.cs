@@ -16,7 +16,7 @@ namespace Slate.Sim
 
         // Warband tuning: sagas, not white noise — a few wars per century, worldwide.
         private const int MaxArmies = 2;
-        private const double ArmySpeed = 0.5;      // cells per month on the march
+        public const double ArmySpeedCellsPerMonth = 0.5; // public: renderers pace their interpolation to it
         private const int TruceYears = 30;         // peace between the same two cultures
 
         public static void Tick(World w)
@@ -342,8 +342,8 @@ namespace Slate.Sim
                 double dist = Math.Sqrt(dx * dx + dy * dy);
                 if (dist > 1.2)
                 {
-                    a.X += dx / dist * ArmySpeed;
-                    a.Y += dy / dist * ArmySpeed;
+                    a.X += dx / dist * ArmySpeedCellsPerMonth;
+                    a.Y += dy / dist * ArmySpeedCellsPerMonth;
                     continue;
                 }
 

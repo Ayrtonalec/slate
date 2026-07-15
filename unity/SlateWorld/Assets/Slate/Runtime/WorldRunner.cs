@@ -13,9 +13,14 @@ namespace Slate.Game
 
         [NonSerialized] public World World;
 
-        // Slow enough to watch a harvest come in; fast enough to watch an age pass.
-        public static readonly float[] SpeedsYearsPerSec = { 0.5f, 3f, 12f };
+        // Manor Lords pacing at speed I: a month lasts ~12 real seconds, so you
+        // can stand in a village and watch the season turn. II is chronicle
+        // pace, III is for watching ages pass.
+        public static readonly float[] SpeedsYearsPerSec = { 1f / 144f, 1f, 12f };
         public int speedIndex = 0;
+
+        // Sim months advanced per real second at the current speed (0 when paused).
+        public float MonthsPerSecond => paused ? 0f : SpeedsYearsPerSec[speedIndex] * 12f;
         public bool paused;
 
         private double _monthAccumulator;

@@ -27,7 +27,7 @@ bible).
 | Right-mouse drag | Grab the map |
 | Q / E | Rotate |
 | Space | Pause |
-| 1 / 2 / 3 | Speed I / II / III (½ / 3 / 12 years per second) |
+| 1 / 2 / 3 | Speed I / II / III — I: a month lasts ~12 s (Manor Lords pace, watch people live); II: 1 year/s (chronicle pace); III: 12 years/s (ages pass) |
 | N | New world (new seed) |
 
 Zoom in on any town and you'll see villagers walking between the houses,
