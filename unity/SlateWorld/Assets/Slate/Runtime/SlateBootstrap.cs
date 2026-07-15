@@ -85,6 +85,10 @@ namespace Slate.Game
             settlementsGO.transform.SetParent(_generated.transform, false);
             settlementsGO.AddComponent<SettlementRenderer>().Init(_runner);
 
+            var districtsGO = new GameObject("Districts");
+            districtsGO.transform.SetParent(_generated.transform, false);
+            districtsGO.AddComponent<DistrictRenderer>().Init(_runner);
+
             var farmsGO = new GameObject("Farmland");
             farmsGO.transform.SetParent(_generated.transform, false);
             farmsGO.AddComponent<FarmlandRenderer>().Init(_runner);

@@ -24,8 +24,20 @@ namespace Slate.Game
         private readonly List<Matrix4x4> _walls = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _palisades = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _ruins = new List<Matrix4x4>();
-        private readonly List<(Vector3 pos, int culture)> _banners = new List<(Vector3, int)>();
+        private readonly List<(Vector3 pos, int id, int culture)> _banners = new List<(Vector3, int, int)>();
+        private readonly Dictionary<int, Material> _armsFlags = new Dictionary<int, Material>();
         private long _signature = -1;
+
+        // Every settlement flies its own arms (Heraldry.cs), cached per id.
+        private Material ArmsFlag(int settlementId, int culture)
+        {
+            if (_armsFlags.TryGetValue(settlementId, out var m)) return m;
+            m = new Material(Shader.Find("Slate/Flag"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BaseMap", Heraldry.Arms(_runner.World.Seed, settlementId, culture));
+            _armsFlags[settlementId] = m;
+            return m;
+        }
 
         private static readonly string[] CultureFolder = { "aldish", "vasker", "serai", "tessian" };
         private Material _trimMat;
@@ -156,9 +168,13 @@ namespace Slate.Game
                 }
                 if (!ok) continue;
 
-                // Variant mix: mostly the common house, some larger kinds.
+                // Variant mix follows wealth: poor places are all common houses,
+                // rich towns grow the larger kinds (house tiers, Batch C).
+                double wealthShift = Mathf.Clamp01((float)s.Wealth / 60f);
                 double roll = rnd.NextDouble();
-                int variant = roll < 0.6 ? 0 : roll < 0.85 ? 1 : 2;
+                double t0 = 0.6 - wealthShift * 0.3;   // fewer commons when rich
+                double t1 = 0.85 - wealthShift * 0.15; // more of the grand kinds
+                int variant = roll < t0 ? 0 : roll < t1 ? 1 : 2;
                 float sc = 2.1f + (float)rnd.NextDouble() * 0.9f + s.Tier * 0.15f;
                 var rot = Quaternion.Euler(0, (float)(rnd.NextDouble() * 360), 0);
                 _houseGroups[culture][variant].Add(Matrix4x4.TRS(pos, rot, new Vector3(sc, sc * (0.92f + (float)rnd.NextDouble() * 0.16f), sc)));
@@ -173,13 +189,13 @@ namespace Slate.Game
                 {
                     float k = 3.4f + Mathf.Min(1.2f, (float)s.Wealth / 80f);
                     _keepGroups[culture].Add(Matrix4x4.TRS(c0, rot, new Vector3(k, k, k)));
-                    _banners.Add((c0 + Vector3.up * (k * 2.9f), culture));
+                    _banners.Add((c0 + Vector3.up * (k * 2.9f), s.Id, culture));
                 }
                 else if (s.Tier >= 1)
                 {
                     float h = 2.6f + s.Tier * 0.5f + Mathf.Min(1.0f, (float)s.Wealth / 60f);
                     _hallGroups[culture].Add(Matrix4x4.TRS(c0, rot, new Vector3(h, h, h)));
-                    _banners.Add((c0 + Vector3.up * (h * 1.6f), culture));
+                    _banners.Add((c0 + Vector3.up * (h * 1.6f), s.Id, culture));
                 }
             }
 
@@ -284,7 +300,7 @@ namespace Slate.Game
             DrawGroup(_wall, _ruinMat, _ruins);
 
             // Banners: politics at a glance, waving over halls and keeps.
-            foreach (var (pos, culture) in _banners)
+            foreach (var (pos, id, culture) in _banners)
             {
                 var rp = new RenderParams(_poleMat)
                 {
@@ -292,7 +308,7 @@ namespace Slate.Game
                     shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,
                 };
                 Graphics.RenderMesh(rp, _wall, 0, Matrix4x4.TRS(pos + Vector3.up * 1.2f, Quaternion.identity, new Vector3(0.12f, 2.4f, 0.12f)));
-                var rpFlag = new RenderParams(_flagMats[culture])
+                var rpFlag = new RenderParams(ArmsFlag(id, culture))
                 {
                     worldBounds = new Bounds(pos, Vector3.one * 16),
                     shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,

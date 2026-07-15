@@ -29,7 +29,34 @@ namespace Slate.Game
         private Material _barkMat, _rockMat;
         private World _w;
         private int _builtBurnVersion = -1;
+        private long _builtClearSig = -1;
         private float _nextRebuildAllowed;
+
+        // Civilization eats its forests: no trees within a town's clearing ring.
+        private static long ClearingSignature(World w)
+        {
+            long sig = 0;
+            foreach (var s in w.Settlements)
+            {
+                if (s.Ruined) continue;
+                sig = sig * 31 + s.Id;
+                sig = sig * 31 + (long)(s.Pop / 400);
+            }
+            return sig;
+        }
+
+        private static bool Cleared(World w, int cx, int cy)
+        {
+            foreach (var s in w.Settlements)
+            {
+                if (s.Ruined) continue;
+                double r = 1.1 + s.Pop / 900.0;          // cells; big towns clear wide
+                if (r > 4.0) r = 4.0;
+                double dx = s.X - cx, dy = s.Y - cy;
+                if (dx * dx + dy * dy <= r * r) return true;
+            }
+            return false;
+        }
 
         private static Mesh LoadModel(string path)
         {
@@ -85,6 +112,7 @@ namespace Slate.Game
         private void Rebuild(World w)
         {
             _builtBurnVersion = w.BurnedVersion;
+            _builtClearSig = ClearingSignature(w);
             foreach (var sp in _all)
             {
                 sp.Instances.Clear(); sp.FallTrunks.Clear(); sp.FallCanopies.Clear();
@@ -122,6 +150,7 @@ namespace Slate.Game
                     bool oasis = biome == B.DESERT && (w.River[i] != 0 || w.SeaDist[i] <= 1);
                     if (biome != B.FOREST && biome != B.MARSH && !oasis) continue;
                     if (w.Burned[i] != 0) continue;
+                    if (Cleared(w, cx, cy)) continue; // felled for timber and firewood
 
                     float temp = w.Temp[i], moist = w.Moist[i];
                     int count = biome == B.MARSH ? 1 : oasis ? 2 : 3 + (int)(SlateRng.Hash2(cx, cy, tseed) * 3);
@@ -152,9 +181,10 @@ namespace Slate.Game
 
         private void Update()
         {
-            if (_w != null && _w.BurnedVersion != _builtBurnVersion && Time.time > _nextRebuildAllowed)
+            if (_w != null && Time.time > _nextRebuildAllowed
+                && (_w.BurnedVersion != _builtBurnVersion || ClearingSignature(_w) != _builtClearSig))
             {
-                _nextRebuildAllowed = Time.time + 1f;
+                _nextRebuildAllowed = Time.time + 8f; // clearings creep, they don't flicker
                 Rebuild(_w);
             }
             foreach (var sp in _all)

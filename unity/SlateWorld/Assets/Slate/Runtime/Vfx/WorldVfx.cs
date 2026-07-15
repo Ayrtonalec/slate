@@ -370,13 +370,49 @@ namespace Slate.Game
                 }
             }
 
-            // --- Marching armies raise dust.
+            // --- Marching armies raise dust; the threatened country lights beacons.
             foreach (var a in w.Armies)
             {
-                if (!Roll(6f)) continue;
-                var p = TerrainSampler.CellToWorld(a.X, a.Y);
-                p.y = TerrainSampler.GroundY(p.x, p.z) + 0.5f;
-                if (p.y > 0.3f) VfxToolkit.Emit(_dust, p - new Vector3(0, 0, 2f), 1, 3f, new Vector3(0, 1.2f, -0.5f));
+                if (Roll(6f))
+                {
+                    var p = TerrainSampler.CellToWorld(a.X, a.Y);
+                    p.y = TerrainSampler.GroundY(p.x, p.z) + 0.5f;
+                    if (p.y > 0.3f) VfxToolkit.Emit(_dust, p - new Vector3(0, 0, 2f), 1, 3f, new Vector3(0, 1.2f, -0.5f));
+                }
+
+                // Beacon chain: tall warning smoke at the target and its nearest
+                // same-culture neighbors — the LotR moment, in daylight smoke.
+                if (!w.SettlementsById.TryGetValue(a.TargetId, out var target) || target == null || target.Ruined)
+                    continue;
+                int lit = 0;
+                foreach (var s in w.Settlements)
+                {
+                    if (s.Ruined || s.Culture != target.Culture) continue;
+                    double d2 = (double)(s.X - target.X) * (s.X - target.X) + (double)(s.Y - target.Y) * (s.Y - target.Y);
+                    if (d2 > 12 * 12) continue;
+                    if (++lit > 4) break;
+                    if (!Roll(7f)) continue;
+                    var bp = TerrainSampler.CellToWorld(s.X, s.Y);
+                    bp.y = TerrainSampler.GroundY(bp.x, bp.z) + 3f;
+                    if (bp.y < 3f) continue;
+                    VfxToolkit.Emit(_pyre, bp, 1, 0.25f, new Vector3(0.1f, 3.6f, 0.1f)); // fast, straight, urgent
+                }
+            }
+
+            // --- Smithies: gold towns hammer and smoke harder than hearths do.
+            if (_rig != null && _rig.Height < 300f)
+            {
+                foreach (var s in w.Settlements)
+                {
+                    if (s.Ruined || !s.Gold) continue;
+                    var c = TerrainSampler.CellToWorld(s.X, s.Y);
+                    if ((c - _rig.Focus).sqrMagnitude > 320f * 320f) continue;
+                    if (!Roll(6f)) continue;
+                    float ang = (float)(SlateRng.Hash2(s.Id, 7, 0x51117) * Mathf.PI * 2);
+                    var p = c + new Vector3(Mathf.Cos(ang), 0, Mathf.Sin(ang)) * TerrainSampler.CellSize * 0.5f;
+                    p.y = TerrainSampler.GroundY(p.x, p.z) + 2.2f;
+                    if (p.y > 2.1f) VfxToolkit.Emit(_smoke, p, 1, 0.4f, new Vector3(0.4f, 2.0f, 0.1f));
+                }
             }
         }
     }

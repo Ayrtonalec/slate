@@ -40,6 +40,19 @@ namespace Slate.Game
             }
         }
 
+        // An army marches under the arms of the town that raised it.
+        private readonly Dictionary<int, Material> _armsFlags = new Dictionary<int, Material>();
+
+        private Material FlagFor(Army a)
+        {
+            if (_armsFlags.TryGetValue(a.FromId, out var m)) return m;
+            m = new Material(Shader.Find("Slate/Flag"));
+            m.SetColor("_BaseColor", Color.white);
+            m.SetTexture("_BaseMap", Heraldry.Arms(_runner.World.Seed, a.FromId, Mathf.Clamp(a.Culture, 0, 3)));
+            _armsFlags[a.FromId] = m;
+            return m;
+        }
+
         private void Update()
         {
             var w = _runner?.World;
@@ -97,7 +110,7 @@ namespace Slate.Game
                 };
                 Graphics.RenderMesh(rp, _pole, 0,
                     Matrix4x4.TRS(bannerPos + Vector3.up * 2.2f, rot, new Vector3(0.16f, 4.4f, 0.16f)));
-                var rpFlag = new RenderParams(_flagMats[Mathf.Clamp(a.Culture, 0, 3)])
+                var rpFlag = new RenderParams(FlagFor(a))
                 {
                     worldBounds = new Bounds(bannerPos, Vector3.one * 20),
                     shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,

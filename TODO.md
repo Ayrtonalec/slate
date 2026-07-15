@@ -149,10 +149,13 @@ must do ALL of this to itself, no god input:
       is 9 tests, all green (battery observed: 10 plagues, ~250 disasters, 177
       scars across 5 seeds x 500y; hierarchy breathes with the plague cycle —
       seed 7: 4.1x -> 3.0x -> 3.7x across years 300/400/500, as real history did).
-- [ ] **Batch C — "The face of things"**: districts & specialization (docks,
-      smithies, market squares, granaries, poor sprawl outside walls), house
-      visual tiers (hovel → timber → stone), heraldry generator (culture/town
-      banners), beacon chains on war, deforestation rings around big towns.
+- [x] **Batch C — "The face of things"** (SHIPPED 2026-07-16): districts from
+      existing stats (fishing towns grow piers + moored boats + drying racks;
+      market towns grow stalls + granaries; walled towns grow a hovel sprawl
+      outside the gate), wealth-weighted house variants, procedural heraldry
+      (every settlement its own coat of arms on its banner; armies march
+      under their home town's arms), war beacon smoke chains, smithy smoke in
+      gold towns, deforestation rings that creep outward as towns grow.
 - [ ] **Batch B — "People, not tokens"**: Figures v1 (T3 keystone: rulers with
       temperament — the founder's chaotic warlord decides torch vs throne),
       dynasties & feuds, named artifacts that travel (loot → shrine → ruin),
