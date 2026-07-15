@@ -112,8 +112,14 @@ must do ALL of this to itself, no god input:
       Slate.Game.Editor.ProjectSetup.BuildAll).
 - [x] (2026-07-15) Founder onboarding notes: `unity/README.md` (open project,
       controls, where code lives, how to run tests, the rules).
-- [ ] Git LFS for binaries (textures/models/audio) + `.gitattributes` — do this
-      BEFORE the first asset pack import.
+- [x] (2026-07-15) Git LFS installed + `.gitattributes` scoped to
+      `unity/SlateWorld/Assets/**` binaries (textures/models/audio). Ready for
+      asset packs.
+- [ ] **Asset pack import session (founder + Claude together)**: founder logs
+      into the Asset Store/Fab in the editor and downloads picks (medieval
+      houses, characters+animations, trees); Claude wires them into the
+      renderers (SettlementRenderer/TreeRenderer/VillagerCrowd swap procedural
+      meshes for pack prefabs). This is THE next big visual jump.
 - [ ] Commit conventions + branch flow simple enough for two devs (founder + Claude).
 
 ## T7 — Idea larder batches (founder greenlit ALL on 2026-07-15; order A → C → B → D)
@@ -205,6 +211,11 @@ visibility in bright/top-down scenes.
 
 **Parked (do not start without founder):** final title + trademark check,
 monetization details, Twitch integration build-out, Modern Age expansion, DM mode.
+**Analyzed & awaiting founder scheduling:** THE ENDLESS SEA (founder's
+infinite-world idea, 2026-07-15) — unbounded discovered world behind an
+animated fog wall, ship expeditions, generate-history-on-discovery. Verdict:
+feasible and uniquely suited to our deterministic core; sim refactor is
+XL (own phase). Full analysis: design doc 08 §4b.
 **Idea larder:** design doc 08 (`god-sim-design/08-idea-larder.md`) holds the
 vetted proposal backlog (plague, disasters, the Trek, districts, bandits,
 artifacts, scars, heraldry, saga view, …) with cost estimates and suggested

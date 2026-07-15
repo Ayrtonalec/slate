@@ -203,6 +203,79 @@ after a sack are the best ruins imaginable. Cost: M.
 
 ---
 
+## 4b. THE ENDLESS SEA — founder's infinite-world proposal (2026-07-15) ★★
+
+**The founder's pitch:** an animated dark fog wall over the ocean at the edge
+of the known world. Mortals must launch ships to explore; expeditions discover
+new procedurally generated lands (big, small, everything between) — and it can
+go on forever, Minecraft-ish. Is it possible: assets, technology, multiplayer,
+performance?
+
+**Verdict: yes — with one crucial reframe, and it's a better fit for THIS game
+than for almost any other.** Literal Minecraft streaming (only what's loaded
+exists/simulates) contradicts our soul: we simulate a *whole world's history*.
+The reframe: **not an infinite world — an unbounded *discovered* world.** The
+world is the set of regions mortals have found. The fog isn't hiding terrain;
+beyond the fog there IS nothing yet — the world comes into being when it is
+witnessed. (For a god game, that's not a hack, that's theology.)
+
+### How it works
+- **Region = worldgen tile** (~a current map, 192×120 cells), generated
+  deterministically from `f(seed, regionX, regionY)` — discovery order can't
+  change what a region contains (determinism law holds).
+- **Expeditions**: port towns launch ships (own rng stream `exploration`;
+  prosperity + population pressure + a restless culture spark them). A visible
+  ship sails into the fog (theater, like armies). Fates: returns with a
+  discovery / returns with nothing / lost with all hands (chronicle drama
+  either way). God powers apply: bless the voyage, or storm it.
+- **On discovery** the region materializes, in one of two flavors, mixed:
+  - *Virgin land*: empty wilderness; colonization spreads (Polynesian /
+    Age-of-Sail energy). Cheap.
+  - *Peopled land* ★: generate the region AND fast-forward its own isolated
+    history to the current year — our deterministic core simulates 500 years
+    in under a second, so "the explorers found an empire with a real
+    600-year chronicle" is *actually computable on the spot*. No other
+    engine trick we own is this uniquely ours. First contact between an old
+    culture and a fresh one is doc-05's drama engine, single-player.
+- **The fog**: animated dark wall (particles + shader) ringing the discovered
+  world; retreats when a region joins. Optional tease: faint far peaks on
+  clear days ("sailors swear they saw mountains"). Rumors before discovery.
+- **The chronicle** gains an Age of Discovery: expedition sagas, first
+  contact, colonial wars, plague jumping continents by ship (all existing
+  systems compose!). The D&D export becomes a world atlas with terra
+  incognita — campaign gold.
+
+### Feasibility honestly
+- **Technology (sim)**: the real cost. Today every array/loop assumes one
+  fixed W×H grid. Refactor: `World` holds regions (each its own grid +
+  offset); global queries route through region lookup; settlements/armies/
+  roads already live in lists (fine); grid systems (fire, regrowth, claims,
+  fert) become per-region. Big but mechanical; the executable-spec tests
+  guard the port. Size: **XL — its own phase** ("the Archipelago update").
+- **Performance**: compute grows with *discovered* regions, not with infinity.
+  ~0.15ms/tick per region today → 10 regions ≈ 1.5ms/tick: nothing at Manor
+  Lords pace, manageable at speed III (cap concurrent "hot" regions or
+  slow-tick distant ones — statistical LOD: far regions tick yearly, near
+  regions monthly — the Theater Principle applied to TIME). Memory: ~2MB per
+  region. Verdict: dozens of regions easy = practically infinite.
+- **Multiplayer**: *better* than fine — event-sourced world = save/netcode is
+  just (seed + event log); discovered-region set derives from events.
+  Pantheon co-op discovery races are an obvious delight.
+- **Assets**: nearly zero new — ships (procedural or one pack model), the fog
+  (our VFX toolkit), region terrain reuses everything.
+- **Risks**: attention dilution (a god can't watch 10 continents — mitigate:
+  discovery is rare/expensive, regions coalesce into "the known world" at
+  atlas zoom); sim refactor churn (do it as a phase, not a patch); ocean
+  seams between regions (worldgen must blend edges — make outer ring of every
+  region deep ocean, so regions are islands/continents in a shared sea: no
+  seam problem at all ★ easiest correct answer).
+
+### Suggested placement
+After the current batches (C, B, D) — it multiplies everything they add
+(figures captain the ships, districts get harbors, faith gets missionaries).
+Prototype the *fog wall + one scripted expedition* early (S, pure theater)
+to feel it; schedule the sim refactor as its own phase with founder sign-off.
+
 ## 5. Structural notes
 
 ### 5.1 Population realism boundary

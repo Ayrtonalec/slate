@@ -1,0 +1,21 @@
+# Git LFS — binary game assets (textures, models, audio) live in LFS so the
+# repo stays fast. Text stays in git: code, scenes, prefabs (ForceText), asmdefs.
+# Scoped to the Unity project; docs/media PNGs elsewhere stay plain git.
+unity/SlateWorld/Assets/**/*.png filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.jpg filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.tga filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.psd filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.exr filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.hdr filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.tif filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.dds filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.fbx filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.FBX filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.obj filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.blend filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.wav filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.mp3 filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.ogg filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.aif filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.mp4 filter=lfs diff=lfs merge=lfs -text
+unity/SlateWorld/Assets/**/*.mov filter=lfs diff=lfs merge=lfs -text
