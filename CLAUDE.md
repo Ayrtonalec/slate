@@ -23,8 +23,9 @@ the original docs tool and are irrelevant — all project work lives in:
 - **Sim determinism is law**: no `Math.random`/`Date.now`/wall-clock inside sim
   logic — use the labeled RNG streams (JS: `S.rng.makeRng(seed, label)`; C#:
   `new Rng(seed, "label")`); keep the fixed tick order (climate → settlements →
-  colonization → gold → dragons → **wars** → roads → claims; wars exist in the
-  C# core only). Same seed must replay the same history (tests enforce this).
+  colonization → gold → dragons → **wars** → **disasters** → **expeditions** →
+  roads → claims; wars/disasters/expeditions exist in the C# core only).
+  Same seed must replay the same history (tests enforce this).
 - The sim core stays **engine-agnostic and headless-testable**. **The C# core
   (`SlateSim/`, a Unity local package with `noEngineReferences`) is now the
   leading core** (2026-07-15); the JS prototype is frozen as the Phase 0

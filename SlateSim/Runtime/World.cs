@@ -74,6 +74,23 @@ namespace Slate.Sim
         public int Until;
     }
 
+    // An expedition ship: out of a port, into the fog at the world's edge,
+    // and — if the sea allows — home again with riches and rumors.
+    public sealed class Ship
+    {
+        public const int Outbound = 0, InFog = 1, Homebound = 2;
+        public int Id;
+        public int HomeId;
+        public string HomeName, Captain;
+        public int Culture;
+        public double X, Y;
+        public double TargetX, TargetY;   // current sailing target
+        public double LaunchX, LaunchY;   // where it left the coast (return point)
+        public int State;
+        public int FogUntil;              // tick the fog lets go
+        public bool WillReturn;
+    }
+
     public sealed class Dragon
     {
         public string Name;
@@ -189,6 +206,12 @@ namespace Slate.Sim
         public List<Zone> SiltZones = new List<Zone>();   // flood aftermath: the river feeds the fields
         public List<LocustCloud> Locusts = new List<LocustCloud>();
         public List<Scar> Scars = new List<Scar>();
+
+        // --- Expeditions into the fog at the world's edge (own labeled stream).
+        public Rng RngSea;
+        public List<Ship> Ships = new List<Ship>();
+        public Dictionary<int, int> ExpeditionCooldown = new Dictionary<int, int>(); // settlement id -> tick
+        public int NextShipId = 1;
         public List<(int X, int Y)> DeadLairs = new List<(int, int)>();
         public List<Road> Roads = new List<Road>();
         public Dictionary<int, int> RoadDeg = new Dictionary<int, int>();
@@ -227,6 +250,7 @@ namespace Slate.Sim
             w.RngWar = new Rng(seed, "war");
             w.RngPlague = new Rng(seed, "plague");
             w.RngDisaster = new Rng(seed, "disaster");
+            w.RngSea = new Rng(seed, "exploration");
             w.Burned = new byte[w.W * w.H];
             w.BurnCellTick = new int[w.W * w.H];
             w.Title = "Seed " + seed;

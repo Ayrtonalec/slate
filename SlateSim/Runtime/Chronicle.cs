@@ -76,6 +76,9 @@ namespace Slate.Sim
                 case "earthquake": return (3, "doom", $"The earth heaves under {d.Region}. Bells ring with no hands on the ropes.");
                 case "wallsFell": return (2, "doom", $"The walls of {d.Name} split and slump. Masons will eat well; so will wolves.");
                 case "locusts": return (2, "doom", $"A darkness of wings crosses {d.Region}, eating the year down to stubble.");
+                case "expedition": return (2, "plain", $"{d.Name} fits out a ship for the outer dark. {d.Hero} takes her past the last known water.");
+                case "expLost": return (2, "doom", $"No sail returns to {d.Name}. The sea keeps {d.Hero} and all hands.");
+                case "expReturn": return (3, "plain", $"{d.Hero} returns to {d.Name} with spices, strange birds, and tales of land beyond the fog.");
                 default: throw new ArgumentException("unknown chronicle type: " + type);
             }
         }

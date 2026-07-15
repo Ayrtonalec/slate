@@ -248,6 +248,9 @@ namespace Slate.Sim
             // --- Disasters & plague: nature is the other author of history.
             Disasters.Monthly(w);
 
+            // --- Expeditions: ships out past the last known water.
+            Expeditions.Monthly(w);
+
             if (w.ClaimsDirtyTick != 0 && w.Tick - w.ClaimsDirtyTick > 24)
             {
                 w.RecomputeClaims();
@@ -536,6 +539,9 @@ namespace Slate.Sim
 
             // Disasters: yearly triggers (plague outbreaks, fire, flood, quake, locusts).
             Disasters.Yearly(w);
+
+            // Expeditions: a restless port may fit out a ship for the fog.
+            Expeditions.Yearly(w);
 
             // Roads: nearby sizable settlements link up.
             int built = 0;

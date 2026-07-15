@@ -98,10 +98,17 @@ namespace Slate.Game.Editor
                 case 5: // plague town under winter snow
                     if (_frame < 150) return;
                     Capture("unity-05-plague-winter.png");
+                    StageFogSea(runner.World, rig);
                     _stage = 6; _frame = 0;
                     return;
 
-                case 6: // let the screenshots flush to disk, then leave
+                case 6: // the fog at the edge of the world, a ship making for it
+                    if (_frame < 150) return;
+                    Capture("unity-06-fog-sea.png");
+                    _stage = 7; _frame = 0;
+                    return;
+
+                case 7: // let the screenshots flush to disk, then leave
                     if (_frame < 200) return;
                     SessionState.SetBool(Flag, false);
                     EditorApplication.update -= Tick;
@@ -181,6 +188,31 @@ namespace Slate.Game.Editor
             town.PlagueSickUntil = w.Tick + 24;
             w.Month = 9; // Deepwinter, visuals only: snow paints + falls, roads close
             rig.SnapTo(TerrainSampler.CellToWorld(town.X, town.Y), 130f, 30f);
+        }
+
+        private static void StageFogSea(World w, CameraRig rig)
+        {
+            w.Month = 5; // summer light again for the sea shot
+
+            // A ship in open water, making for the western fog.
+            Settlement port = null;
+            foreach (var s in w.AliveSettlements())
+                if (s.Fish && (port == null || s.Pop > port.Pop)) port = s;
+            if (port != null)
+            {
+                w.Ships.Add(new Ship
+                {
+                    Id = w.NextShipId++, HomeId = port.Id, HomeName = port.Name,
+                    Captain = "Captain " + port.Name, Culture = port.Culture,
+                    X = 14, Y = port.Y, LaunchX = port.X, LaunchY = port.Y,
+                    TargetX = 1, TargetY = port.Y, State = Ship.Outbound,
+                });
+                rig.SnapTo(TerrainSampler.CellToWorld(9, port.Y), 120f, 100f);
+            }
+            else
+            {
+                rig.SnapTo(TerrainSampler.CellToWorld(8, w.H / 2.0), 150f, 100f);
+            }
         }
 
         private static void Center(CameraRig rig, float height)

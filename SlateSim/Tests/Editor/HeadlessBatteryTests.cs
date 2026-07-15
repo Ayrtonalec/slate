@@ -246,6 +246,29 @@ namespace Slate.Sim.Tests
         }
 
         [Test]
+        public void Expeditions_SailAndResolve()
+        {
+            // The Endless Sea preview: ports launch ships into the fog on their
+            // own; every voyage ends in a return, a loss, or is still at sea.
+            int launched = 0, returned = 0, lost = 0;
+            foreach (int seed in new[] { 1, 2, 3, 7, 42 })
+            {
+                var w = World.Create(seed);
+                Simulation.RunYears(w, 500);
+                foreach (var e in w.Chronicle.Events)
+                {
+                    if (e.Type == "expedition") launched++;
+                    if (e.Type == "expReturn") returned++;
+                    if (e.Type == "expLost") lost++;
+                }
+                Assert.That(w.Ships.Count, Is.LessThanOrEqualTo(2), $"seed {seed}: ships bounded");
+            }
+            TestContext.Out.WriteLine($"battery: {launched} expeditions, {returned} returned, {lost} lost");
+            Assert.That(launched, Is.GreaterThanOrEqualTo(3), "ports fit out ships on their own");
+            Assert.That(returned + lost, Is.GreaterThanOrEqualTo(2), "voyages resolve");
+        }
+
+        [Test]
         public void Chronicle_ExportsToMarkdown()
         {
             var w = World.Create(7);

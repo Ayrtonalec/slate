@@ -101,6 +101,14 @@ namespace Slate.Game
             scarsGO.transform.SetParent(_generated.transform, false);
             scarsGO.AddComponent<ScarRenderer>().Init(_runner);
 
+            var fogGO = new GameObject("FogWall");
+            fogGO.transform.SetParent(_generated.transform, false);
+            fogGO.AddComponent<FogWallRenderer>().Build(w);
+
+            var shipsGO = new GameObject("Ships");
+            shipsGO.transform.SetParent(_generated.transform, false);
+            shipsGO.AddComponent<ShipRenderer>().Init(_runner);
+
             // Camera: start over the first homeland, high enough to read the world.
             var cam = Camera.main;
             SetupPostFx(cam);
