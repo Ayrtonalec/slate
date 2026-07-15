@@ -25,10 +25,14 @@
 | [05-multiplayer-and-streamability.md](05-multiplayer-and-streamability.md) | Co-op pantheon play, async modes, Twitch integration, chill positioning |
 | [06-feasibility-engine-art.md](06-feasibility-engine-art.md) | Honest difficulty assessment, engine choice (UE5 vs Unity vs Godot), art pipeline reality check, risks |
 | [07-roadmap.md](07-roadmap.md) | Phased plan from prototype to Early Access, vertical slice spec |
+| [08-idea-larder.md](08-idea-larder.md) | Proposals, NOT canon: plague, disasters, treks, districts, bandits, artifacts, scars — graduate to TODO only on founder greenlight |
 
 ## Status
 
 - **2026-07-14** — v0 design bible drafted from the initial braindump.
+- **2026-07-15** — Real-game development started (see `../TODO.md`): C# core +
+  Unity build playable same day; wars, farmland, pacing and settlement
+  heterogeneity shipped from live founder feedback. Idea larder (doc 08) opened.
 - **2026-07-14** — Phase 0 "Proof of Life" built and playable: [`../god-sim-prototype/`](../god-sim-prototype/README.md) — a deterministic, fully autonomous world sim rendered as a living illustrated atlas (single HTML file, zero install), with the founder-note powers (seed gold / curse weather / bless land), emergent dragons and wyrmslayers, and a Markdown-exportable chronicle. Next: the feel test (see [07-roadmap.md](07-roadmap.md)).
 
 ## Working title candidates

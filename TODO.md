@@ -128,3 +128,7 @@ must do ALL of this to itself, no god input:
 
 **Parked (do not start without founder):** final title + trademark check,
 monetization details, Twitch integration build-out, Modern Age expansion, DM mode.
+**Idea larder:** design doc 08 (`god-sim-design/08-idea-larder.md`) holds the
+vetted proposal backlog (plague, disasters, the Trek, districts, bandits,
+artifacts, scars, heraldry, saga view, …) with cost estimates and suggested
+batches — pull from there when the founder greenlights.
