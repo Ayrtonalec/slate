@@ -25,7 +25,7 @@ namespace Slate.Game
             _runner = runner;
             _soldier = ProceduralMeshes.Villager();
             _pole = ProceduralMeshes.Box();
-            _flag = ProceduralMeshes.Box();
+            _flag = ProceduralMeshes.FlagCloth();
             _soldierMats = new Material[4];
             _flagMats = new Material[4];
             _poleMat = SettlementRenderer.MakeLit(new Color(0.30f, 0.24f, 0.18f));
@@ -34,7 +34,9 @@ namespace Slate.Game
                 _soldiers[c] = new List<Matrix4x4>();
                 // Soldiers read darker and harder than villagers: iron over cloth.
                 _soldierMats[c] = SettlementRenderer.MakeLit(Color.Lerp(Palette.CultureColor(c), new Color(0.30f, 0.30f, 0.32f), 0.45f));
-                _flagMats[c] = SettlementRenderer.MakeLit(Palette.CultureColor(c) * 1.35f);
+                // Banners are actual waving cloth (Slate/Flag does the work).
+                _flagMats[c] = new Material(Shader.Find("Slate/Flag"));
+                _flagMats[c].SetColor("_BaseColor", Palette.CultureColor(c) * 1.35f);
             }
         }
 
@@ -98,12 +100,12 @@ namespace Slate.Game
                 var rpFlag = new RenderParams(_flagMats[Mathf.Clamp(a.Culture, 0, 3)])
                 {
                     worldBounds = new Bounds(bannerPos, Vector3.one * 20),
-                    shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On,
+                    shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off,
                 };
-                float wave = Mathf.Sin(t * 3f + a.Id) * 8f;
+                // Cloth pinned at the pole; the shader waves the free edge.
                 Graphics.RenderMesh(rpFlag, _flag, 0,
-                    Matrix4x4.TRS(bannerPos + Vector3.up * 4.0f + rot * new Vector3(0.8f, 0, 0),
-                        rot * Quaternion.Euler(0, wave, 0), new Vector3(1.6f, 1.0f, 0.1f)));
+                    Matrix4x4.TRS(bannerPos + Vector3.up * 3.9f,
+                        rot * Quaternion.Euler(0, 90f, 0), new Vector3(2.0f, 1.1f, 1f)));
             }
 
             for (int c = 0; c < 4; c++)

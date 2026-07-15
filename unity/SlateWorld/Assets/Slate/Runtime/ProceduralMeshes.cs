@@ -165,6 +165,34 @@ namespace Slate.Game
             return Build(v, t);
         }
 
+        // Banner cloth: subdivided quad in the XZ... no — XY plane, pole at x=0,
+        // 1 unit long and 1 unit tall, uv.x = 0 at the pole so the flag shader
+        // can pin it there and wave the free edge.
+        public static Mesh FlagCloth(int segX = 9, int segY = 4)
+        {
+            var v = new List<Vector3>();
+            var uv = new List<Vector2>();
+            var t = new List<int>();
+            for (int y = 0; y <= segY; y++)
+                for (int x = 0; x <= segX; x++)
+                {
+                    float fx = (float)x / segX, fy = (float)y / segY;
+                    v.Add(new Vector3(fx, fy - 0.5f, 0));
+                    uv.Add(new Vector2(fx, fy));
+                }
+            for (int y = 0; y < segY; y++)
+                for (int x = 0; x < segX; x++)
+                {
+                    int i = y * (segX + 1) + x;
+                    t.Add(i); t.Add(i + segX + 1); t.Add(i + 1);
+                    t.Add(i + 1); t.Add(i + segX + 1); t.Add(i + segX + 2);
+                }
+            var m = new Mesh();
+            m.SetVertices(v); m.SetUVs(0, uv); m.SetTriangles(t, 0);
+            m.RecalculateNormals(); m.RecalculateBounds();
+            return m;
+        }
+
         // Flat disc of radius 1 at y=0 with UVs (r encoded in uv.x for the zone shader).
         public static Mesh Disc(int seg = 40)
         {

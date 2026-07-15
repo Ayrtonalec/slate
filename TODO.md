@@ -146,10 +146,22 @@ must do ALL of this to itself, no god input:
 
 **The rule:** every world phenomenon must be recognizable *purely from its
 effects and animation* — no label, no chronicle line, no tooltip needed — and
-must look good enough that a first-time viewer goes "wow". The current flat
-zone-discs are explicitly **placeholders** and do not meet this bar. Definition
-of done per phenomenon ("a stranger watching over your shoulder names it
-unprompted"):
+must look good enough that a first-time viewer goes "wow".
+
+**Foundation SHIPPED (2026-07-15):** reusable particle toolkit (`Slate.Game.Vfx`:
+procedural textures + a particle-system factory using URP's built-in unlit
+particle shader — a hand-written particle shader silently failed to render, a
+long debugging detour worth remembering) and `WorldVfx` manager reading sim
+state each frame. Working voices: **wildfire** (licking flames + rising embers +
+a leaning smoke plume — verified dramatic), **plague** (green miasma + dark pyre
+smoke over sick towns), **locusts** (buzzing swarm), **storm rain**, **bless
+motes**, **gold glitter**, **winter snowfall** + a snow-dusting terrain paint
+(no longer a whiteout), **battle/quake dust bursts + sparks**, **sacked-town
+smolder for years**, **army march dust**, **dragon-lair curl**. Banners are now
+**waving cloth** (`Slate/Flag` vertex shader), not rigid blocks. Placeholder
+zone-discs removed (only the locust ground-shadow disc remains, intentionally).
+Remaining polish per phenomenon below; plague-miasma needs live-tuning for
+visibility in bright/top-down scenes.
 
 - [ ] **Plague**: a low, creeping grey-green miasma hugging the streets;
       thin pyre-smoke columns rising from the town; carrion birds circling;

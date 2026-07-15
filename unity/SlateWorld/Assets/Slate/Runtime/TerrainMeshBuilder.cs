@@ -139,18 +139,20 @@ namespace Slate.Game
         private int _paintedSnowBucket = -1;
         private float _nextRepaintAllowed;
 
-        private static readonly Color BurningGlow = new Color(0.75f, 0.30f, 0.10f);
+        private static readonly Color BurningGlow = new Color(0.70f, 0.28f, 0.09f);
         private static readonly Color CharBlack = new Color(0.16f, 0.14f, 0.12f);
+        private static readonly Color SnowTint = new Color(0.85f, 0.88f, 0.93f); // cool, not pure white
 
         // Season -> snow strength (Frostgate .. Icewane whiten the cold latitudes).
+        // A dusting, not a whiteout — the land must still read underneath.
         private static float SnowStrength(int month)
         {
             switch (month)
             {
-                case 8: return 0.35f;  // Frostgate
-                case 9: return 1.0f;   // Deepwinter
-                case 10: return 0.8f;  // Icewane
-                case 11: return 0.25f; // Stirring
+                case 8: return 0.30f;  // Frostgate
+                case 9: return 0.62f;  // Deepwinter
+                case 10: return 0.5f;  // Icewane
+                case 11: return 0.20f; // Stirring
                 default: return 0f;
             }
         }
@@ -223,7 +225,7 @@ namespace Slate.Game
                         int cz = Mathf.Clamp(vz / VertsPerCell, 0, _w.H - 1);
                         float cold = Mathf.Clamp01((0.52f - _w.Temp[cz * _w.W + cx]) * 3.2f);
                         float wgt = cold * snow;
-                        if (wgt > 0.02f) cols[i] = Color.Lerp(cols[i], Palette.SnowCap, wgt * 0.9f);
+                        if (wgt > 0.02f) cols[i] = Color.Lerp(cols[i], SnowTint, wgt * 0.6f);
                     }
             }
 

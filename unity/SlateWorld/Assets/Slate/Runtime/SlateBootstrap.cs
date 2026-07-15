@@ -78,6 +78,10 @@ namespace Slate.Game
             zonesGO.transform.SetParent(_generated.transform, false);
             zonesGO.AddComponent<ZoneEffects>().Init(_runner);
 
+            var vfxGO = new GameObject("WorldVfx");
+            vfxGO.transform.SetParent(_generated.transform, false);
+            vfxGO.AddComponent<WorldVfx>().Init(_runner, rig);
+
             var hud = GetComponent<HudOverlay>();
             if (hud == null) hud = gameObject.AddComponent<HudOverlay>();
             hud.Init(_runner, rig, cam);

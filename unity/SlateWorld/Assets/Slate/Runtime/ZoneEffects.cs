@@ -12,7 +12,7 @@ namespace Slate.Game
         private WorldRunner _runner;
         private Mesh _disc;
         private Material _storm, _bless, _lair, _menace, _pingGod, _pingDoom, _pingPlain;
-        private Material _plague, _fire, _smoke, _locust;
+        private Material _locust;
 
         private class Ping
         {
@@ -34,10 +34,7 @@ namespace Slate.Game
             _pingGod = MakeZone(new Color(Palette.DivineGold.r, Palette.DivineGold.g, Palette.DivineGold.b, 0.9f), ring: 1f);
             _pingDoom = MakeZone(new Color(Palette.DoomBlood.r, Palette.DoomBlood.g, Palette.DoomBlood.b, 0.9f), ring: 1f);
             _pingPlain = MakeZone(new Color(0.95f, 0.92f, 0.80f, 0.8f), ring: 1f);
-            _plague = MakeZone(new Color(0.55f, 0.58f, 0.38f, 0.38f), ring: 0f);   // sickly pall
-            _fire = MakeZone(new Color(0.95f, 0.45f, 0.12f, 0.55f), ring: 0f);     // flame glow
-            _smoke = MakeZone(new Color(0.35f, 0.33f, 0.30f, 0.30f), ring: 0f);    // smoke pall
-            _locust = MakeZone(new Color(0.22f, 0.19f, 0.10f, 0.50f), ring: 0f);   // a darkness of wings
+            _locust = MakeZone(new Color(0.16f, 0.14f, 0.08f, 0.28f), ring: 0f);   // the swarm's moving shadow
 
             runner.EventLogged += OnEvent;
             runner.WorldRebuilt += _ => _pings.Clear();
@@ -79,31 +76,11 @@ namespace Slate.Game
                 DrawZone(_menace, d.X, d.Y, 8f * cell * pulse); // the terror radius, breathing
             }
 
-            // The pest: a sickly pall over every infected settlement.
-            if (w.PlagueActive)
-            {
-                float breathe = 0.95f + Mathf.Sin(Time.time * 1.3f) * 0.05f;
-                foreach (var s in w.Settlements)
-                    if (!s.Ruined && s.PlagueState == 1)
-                        DrawZone(_plague, s.X, s.Y, cell * (1.3f + 0.5f * s.Tier) * breathe);
-            }
-
-            // Wildfire: each burning cell glows under a drifting smoke pall.
-            foreach (int i in w.BurningCells)
-            {
-                int cx = i % w.W, cy = i / w.W;
-                float flicker = 0.85f + Mathf.Sin(Time.time * 9f + i) * 0.15f;
-                DrawZone(_fire, cx, cy, cell * 0.62f * flicker);
-                float drift = Mathf.Sin(Time.time * 0.7f + i * 0.3f) * 0.3f;
-                DrawZone(_smoke, cx + drift, cy - 0.6f - drift * 0.5f, cell * 1.1f);
-            }
-
-            // Locusts: a shimmering darkness crossing the land.
+            // Plague, fire and the locust swarm itself are voiced by WorldVfx
+            // particles now (the founder's bar: no flat placeholder discs).
+            // What remains here is the locusts' moving ground shadow.
             foreach (var c in w.Locusts)
-            {
-                float shimmer = 0.9f + Mathf.Sin(Time.time * 13f) * 0.1f;
-                DrawZone(_locust, c.X, c.Y, 3f * cell * shimmer);
-            }
+                DrawZone(_locust, c.X, c.Y, 2.6f * cell);
 
             // Expanding, fading rings for notable chronicle events.
             float now = Time.time;
