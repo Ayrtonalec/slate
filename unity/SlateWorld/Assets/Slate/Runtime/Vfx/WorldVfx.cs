@@ -24,6 +24,10 @@ namespace Slate.Game
         private class Smolder { public Vector3 Pos; public int UntilYear; }
         private readonly List<Smolder> _smolders = new List<Smolder>();
 
+        // A small pool of flickering point lights: fire casts real light on the
+        // world around it. Assigned to burning clusters each frame.
+        private Light[] _fireLights;
+
         public void Init(WorldRunner runner, CameraRig rig)
         {
             Instance = this;
@@ -33,11 +37,12 @@ namespace Slate.Game
 
             _flames = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
-                Name = "flames", Material = VfxToolkit.DotAdditiveMaterial,
-                ColorA = new Color(1.0f, 0.75f, 0.25f, 0.95f), ColorB = new Color(0.95f, 0.35f, 0.08f, 0.95f),
-                SizeMin = 1.2f, SizeMax = 2.6f, LifeMin = 0.5f, LifeMax = 1.1f,
-                Gravity = -0.6f, NoiseStrength = 0.8f, NoiseFrequency = 0.6f,
-                FadeInOut = true, GrowOverLife = 0.4f, MaxParticles = 1500,
+                Name = "flames", Material = VfxToolkit.FlameMaterial,
+                ColorA = new Color(1f, 1f, 1f, 1f), ColorB = new Color(1f, 0.9f, 0.85f, 0.9f),
+                SizeMin = 1.8f, SizeMax = 3.4f, LifeMin = 0.45f, LifeMax = 0.9f,
+                Gravity = -0.5f, NoiseStrength = 0.55f, NoiseFrequency = 0.7f,
+                FadeInOut = true, GrowOverLife = 0.5f, MaxParticles = 1500,
+                TallAspect = 1.9f, // upright licks, not blobs
             });
             _embers = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
@@ -49,7 +54,7 @@ namespace Slate.Game
             });
             _smoke = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
-                Name = "smoke", Material = VfxToolkit.DotMaterial,
+                Name = "smoke", Material = VfxToolkit.BillowMaterial,
                 ColorA = new Color(0.32f, 0.30f, 0.28f, 0.35f), ColorB = new Color(0.45f, 0.43f, 0.40f, 0.28f),
                 SizeMin = 3f, SizeMax = 6f, LifeMin = 3.5f, LifeMax = 6f,
                 Gravity = -0.18f, NoiseStrength = 0.6f, NoiseFrequency = 0.25f,
@@ -57,7 +62,7 @@ namespace Slate.Game
             });
             _pyre = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
-                Name = "pyre-smoke", Material = VfxToolkit.DotMaterial,
+                Name = "pyre-smoke", Material = VfxToolkit.BillowMaterial,
                 ColorA = new Color(0.30f, 0.28f, 0.26f, 0.55f), ColorB = new Color(0.20f, 0.19f, 0.18f, 0.45f),
                 SizeMin = 1.4f, SizeMax = 2.6f, LifeMin = 3.5f, LifeMax = 5.5f,
                 Gravity = -0.28f, NoiseStrength = 0.25f, NoiseFrequency = 0.3f,
@@ -65,7 +70,7 @@ namespace Slate.Game
             });
             _miasma = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
-                Name = "miasma", Material = VfxToolkit.DotMaterial,
+                Name = "miasma", Material = VfxToolkit.BillowMaterial,
                 ColorA = new Color(0.42f, 0.54f, 0.22f, 0.75f), ColorB = new Color(0.30f, 0.40f, 0.18f, 0.85f),
                 SizeMin = 4f, SizeMax = 8f, LifeMin = 4f, LifeMax = 7f,
                 Gravity = 0f, NoiseStrength = 0.35f, NoiseFrequency = 0.15f,
@@ -112,7 +117,7 @@ namespace Slate.Game
             });
             _dust = VfxToolkit.Create(t, new VfxToolkit.SystemSpec
             {
-                Name = "dust", Material = VfxToolkit.DotMaterial,
+                Name = "dust", Material = VfxToolkit.BillowMaterial,
                 ColorA = new Color(0.62f, 0.55f, 0.42f, 0.4f), ColorB = new Color(0.55f, 0.48f, 0.38f, 0.3f),
                 SizeMin = 1.4f, SizeMax = 3f, LifeMin = 1f, LifeMax = 2.2f,
                 Gravity = -0.05f, NoiseStrength = 0.5f, NoiseFrequency = 0.5f,
@@ -125,6 +130,21 @@ namespace Slate.Game
                 SizeMin = 0.15f, SizeMax = 0.3f, LifeMin = 0.3f, LifeMax = 0.7f,
                 Gravity = 1.2f, FadeInOut = true, MaxParticles = 400,
             });
+
+            _fireLights = new Light[6];
+            for (int i = 0; i < _fireLights.Length; i++)
+            {
+                var go = new GameObject("fire-light-" + i);
+                go.transform.SetParent(t, false);
+                var l = go.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = new Color(1f, 0.55f, 0.22f);
+                l.range = 30f;
+                l.intensity = 0f;
+                l.shadows = LightShadows.None;
+                l.enabled = false;
+                _fireLights[i] = l;
+            }
 
             runner.EventLogged += OnEvent;
             runner.WorldRebuilt += _ => _smolders.Clear();
@@ -187,7 +207,8 @@ namespace Slate.Game
             if (w == null) return;
             float cell = TerrainSampler.CellSize;
 
-            // --- Wildfire: flames lick, embers rise, the plume leans east.
+            // --- Wildfire: flames lick, embers rise, the plume leans east,
+            // and the fire throws real flickering light on its surroundings.
             int fireBudget = 0;
             foreach (int i in w.BurningCells)
             {
@@ -195,10 +216,26 @@ namespace Slate.Game
                 int cx = i % w.W, cy = i / w.W;
                 var p = TerrainSampler.CellToWorld(cx, cy);
                 p.y = TerrainSampler.GroundY(p.x, p.z);
-                if (Roll(9f)) VfxToolkit.Emit(_flames, p + Vector3.up * 0.8f, 1, cell * 0.42f, new Vector3(0, Random.Range(2f, 4f), 0));
+                if (Roll(11f)) VfxToolkit.Emit(_flames, p + Vector3.up * 0.6f, 1, cell * 0.42f, new Vector3(0, Random.Range(2f, 4f), 0));
                 if (Roll(3f)) VfxToolkit.Emit(_embers, p + Vector3.up * 2f, 1, cell * 0.4f, new Vector3(Random.Range(-1f, 2f), Random.Range(3f, 7f), Random.Range(-1f, 1f)));
                 if (Roll(2.2f)) VfxToolkit.Emit(_smoke, p + Vector3.up * 4f, 1, cell * 0.35f, new Vector3(2.2f, 3.5f, 0.4f)); // the plume leans with the wind
             }
+            int lightsUsed = 0;
+            if (w.BurningCells.Count > 0)
+            {
+                int stride = Mathf.Max(1, w.BurningCells.Count / _fireLights.Length);
+                for (int k = 0; k < w.BurningCells.Count && lightsUsed < _fireLights.Length; k += stride)
+                {
+                    int i = w.BurningCells[k];
+                    var p = TerrainSampler.CellToWorld(i % w.W, i / w.W);
+                    p.y = TerrainSampler.GroundY(p.x, p.z) + 5f;
+                    var l = _fireLights[lightsUsed++];
+                    l.transform.position = p;
+                    l.intensity = 3.2f + Mathf.PerlinNoise(Time.time * 7f, i * 0.13f) * 3.5f;
+                    l.enabled = true;
+                }
+            }
+            for (int k = lightsUsed; k < _fireLights.Length; k++) _fireLights[k].enabled = false;
 
             // --- Plague: ground miasma + thin pyre smoke in every sick town.
             if (w.PlagueActive)

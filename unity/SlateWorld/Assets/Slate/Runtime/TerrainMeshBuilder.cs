@@ -10,7 +10,7 @@ namespace Slate.Game
 {
     public class TerrainMeshBuilder : MonoBehaviour
     {
-        public const int VertsPerCell = 2; // vertex every 4 world units
+        public const int VertsPerCell = 3; // vertex every ~2.7 world units (relief density)
 
         private Mesh _mesh;
         private Color[] _baseColors; // pre-road colors, so roads can repaint cleanly
@@ -74,6 +74,11 @@ namespace Slate.Game
             var mr = gameObject.GetComponent<MeshRenderer>();
             if (mr == null) mr = gameObject.AddComponent<MeshRenderer>();
             var mat = new Material(Shader.Find("Slate/Terrain"));
+            // Per-pixel ground detail: procedural seamless tiles, two scales in-shader.
+            mat.SetTexture("_GrassTex", TerrainTextures.Grass());
+            mat.SetTexture("_RockTex", TerrainTextures.Rock());
+            mat.SetTexture("_SnowTex", TerrainTextures.Snow());
+            mat.SetFloat("_DetailScale", 0.34f);
             mr.sharedMaterial = mat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
@@ -91,7 +96,10 @@ namespace Slate.Game
             return (cx, cz);
         }
 
-        // Bilinear biome color between cell centers, with land dressing.
+        // Bilinear biome color between cell centers. RGB carries the macro
+        // tint; ALPHA carries the snow mask (permanent caps here, seasonal
+        // snow painted in RepaintOverlays). Rock-on-slopes moved to the
+        // shader, per-pixel.
         private Color VertexColor(float wx, float wz, float y, bool river)
         {
             float gx = wx / TerrainSampler.CellSize - 0.5f;
@@ -103,17 +111,22 @@ namespace Slate.Game
                 Color.Lerp(CellColor(x0, z0), CellColor(x0 + 1, z0), fx),
                 Color.Lerp(CellColor(x0, z0 + 1), CellColor(x0 + 1, z0 + 1), fx), fz);
 
+            float snow = 0f;
             if (y > 0f)
             {
-                // Rock tint climbs the relief, snow tops it, rivers stain their banks.
                 float rel = TerrainSampler.Height01(wx, wz) - (float)_w.Sea;
-                if (rel > 0.24f) c = Color.Lerp(c, Palette.RockSlope, Mathf.Clamp01((rel - 0.24f) * 5f));
-                if (rel > 0.31f) c = Color.Lerp(c, Palette.SnowCap, Mathf.Clamp01((rel - 0.31f) * 9f));
+                // Permanent caps on the high peaks; frozen latitudes carry a
+                // smooth dusting (bilinear temperature: no blocky snowlines).
+                snow = Mathf.Clamp01((rel - 0.30f) * 9f);
+                float frozen = Mathf.Clamp01((0.22f - TerrainSampler.Temp01(wx, wz)) * 7f);
+                snow = Mathf.Max(snow, frozen * 0.7f);
+
                 if (river) c = Color.Lerp(c, Palette.RiverTint, 0.55f);
                 // Painterly variation so plains don't read as flat plastic.
                 float v = (float)SlateRng.Hash2(Mathf.FloorToInt(wx * 0.7f), Mathf.FloorToInt(wz * 0.7f), 0xBEEF) - 0.5f;
                 c = Color.Lerp(c, c * (1f + v * 0.16f), 0.8f);
             }
+            c.a = Mathf.Clamp01(snow);
             return c;
         }
 
@@ -192,13 +205,17 @@ namespace Slate.Game
                             int i = nz * _vw + nx;
                             if (_vertices[i].y <= 0.2f) continue;
                             float wgt = (dx == 0 && dz == 0) ? 0.75f : 0.35f;
-                            cols[i] = Color.Lerp(cols[i], Palette.RoadDirt, wgt);
+                            float keepA = cols[i].a; // rgb is paint; alpha is the snow mask
+                            var rc = Color.Lerp(cols[i], Palette.RoadDirt, wgt);
+                            rc.a = keepA * 0.5f;     // trodden roads shed their snow
+                            cols[i] = rc;
                         }
                 }
             }
 
             // Fire: burning cells glow, burned cells are charcoal scars that
-            // fade as the forest regrows (the land remembers).
+            // fade as the forest regrows (the land remembers). Fire also melts
+            // and blackens the snow mask.
             if (_w.BurnedVersion > 0)
             {
                 for (int cz = 0; cz < _w.H; cz++)
@@ -213,6 +230,8 @@ namespace Slate.Game
             }
 
             // Winter: snow settles on the cold latitudes, deepest in Deepwinter.
+            // Written into the SNOW MASK (vertex alpha); the shader lays the
+            // actual snow texture per-pixel.
             float snow = SnowStrength(_w.Month);
             if (snow > 0.01f)
             {
@@ -224,8 +243,13 @@ namespace Slate.Game
                         int cx = Mathf.Clamp(vx / VertsPerCell, 0, _w.W - 1);
                         int cz = Mathf.Clamp(vz / VertsPerCell, 0, _w.H - 1);
                         float cold = Mathf.Clamp01((0.52f - _w.Temp[cz * _w.W + cx]) * 3.2f);
-                        float wgt = cold * snow;
-                        if (wgt > 0.02f) cols[i] = Color.Lerp(cols[i], SnowTint, wgt * 0.6f);
+                        float wgt = cold * snow * 0.85f;
+                        if (wgt > 0.02f)
+                        {
+                            var c = cols[i];
+                            c.a = Mathf.Max(c.a, wgt);
+                            cols[i] = c;
+                        }
                     }
             }
 
@@ -241,7 +265,9 @@ namespace Slate.Game
                     int nx = v0x + dx, nz = v0z + dz;
                     if (nx >= _vw || nz >= _vh) continue;
                     int i = nz * _vw + nx;
-                    cols[i] = Color.Lerp(cols[i], target, wgt);
+                    var c = Color.Lerp(cols[i], target, wgt);
+                    c.a = 0f; // fire melts and blackens the snow mask
+                    cols[i] = c;
                 }
         }
     }

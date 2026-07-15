@@ -48,6 +48,77 @@ namespace Slate.Game
             return t;
         }
 
+        private static float Hash01(int x, int y)
+            => Mathf.Abs(Mathf.Sin(x * 127.1f + y * 311.7f) * 43758.5453f) % 1f;
+
+        private static float ValueNoise(float x, float y)
+        {
+            int ix = Mathf.FloorToInt(x), iy = Mathf.FloorToInt(y);
+            float fx = x - ix, fy = y - iy;
+            fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+            return Mathf.Lerp(
+                Mathf.Lerp(Hash01(ix, iy), Hash01(ix + 1, iy), fx),
+                Mathf.Lerp(Hash01(ix, iy + 1), Hash01(ix + 1, iy + 1), fx), fy);
+        }
+
+        // Billowy smoke: fractal noise inside a radial falloff, so smoke reads
+        // as roiling cloud matter instead of a soft disc.
+        private static Texture2D _billow;
+        private static Texture2D Billow()
+        {
+            if (_billow != null) return _billow;
+            const int S = 64;
+            var t = new Texture2D(S, S, TextureFormat.RGBA32, false);
+            for (int y = 0; y < S; y++)
+                for (int x = 0; x < S; x++)
+                {
+                    float dx = (x + 0.5f) / S - 0.5f, dy = (y + 0.5f) / S - 0.5f;
+                    float r = Mathf.Sqrt(dx * dx + dy * dy) * 2f;
+                    float falloff = Mathf.Clamp01(1f - r);
+                    falloff = falloff * falloff * (3f - 2f * falloff);
+                    float n = ValueNoise(x * 0.11f, y * 0.11f) * 0.6f
+                            + ValueNoise(x * 0.23f, y * 0.23f) * 0.3f
+                            + ValueNoise(x * 0.47f, y * 0.47f) * 0.1f;
+                    float a = Mathf.Clamp01(falloff * (0.30f + 1.0f * n));
+                    t.SetPixel(x, y, new Color(1, 1, 1, a));
+                }
+            t.Apply();
+            _billow = t;
+            return t;
+        }
+
+        // A flame lick: teardrop with a near-white core cooling to deep
+        // orange-red edges. Color is baked in; additive blending + bloom
+        // make the core burn.
+        private static Texture2D _flame;
+        private static Texture2D Flame()
+        {
+            if (_flame != null) return _flame;
+            const int W = 48, H = 64;
+            var t = new Texture2D(W, H, TextureFormat.RGBA32, false);
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                {
+                    float u = ((x + 0.5f) / W - 0.5f) * 2f;   // -1..1
+                    float v = (y + 0.5f) / H;                 // 0 bottom .. 1 tip
+                    float wobble = (ValueNoise(x * 0.2f, y * 0.13f) - 0.5f) * 0.35f * v;
+                    float uu = u + wobble;
+                    float radius = 0.62f * (1f - v * 0.68f);
+                    float d = Mathf.Abs(uu) / Mathf.Max(0.05f, radius);
+                    float baseFade = v < 0.12f ? v / 0.12f : 1f;
+                    float tipFade = 1f - Mathf.SmoothStep(0.70f, 1f, v);
+                    float a = Mathf.Clamp01(1f - d) * baseFade * tipFade;
+                    a = a * a * (3f - 2f * a);
+                    float heat = Mathf.Clamp01(1.3f - d * 0.8f - v * 0.5f);
+                    Color c = Color.Lerp(new Color(0.80f, 0.13f, 0.02f), new Color(1f, 0.93f, 0.66f), heat * heat);
+                    c.a = a;
+                    t.SetPixel(x, y, c);
+                }
+            t.Apply();
+            _flame = t;
+            return t;
+        }
+
         // A tiny irregular speck, for locusts and embers.
         private static Texture2D Fleck()
         {
@@ -91,13 +162,15 @@ namespace Slate.Game
             return m;
         }
 
-        private static Material _dotAlpha, _dotAdd, _streakAlpha, _fleckAdd, _fleckAlpha;
+        private static Material _dotAlpha, _dotAdd, _streakAlpha, _fleckAdd, _fleckAlpha, _billowAlpha, _flameAdd;
 
-        public static Material DotMaterial => _dotAlpha ??= Build(SoftDot(), false);          // smoke, mist, snow
-        public static Material DotAdditiveMaterial => _dotAdd ??= Build(SoftDot(), true);     // flames, motes, glitter
+        public static Material DotMaterial => _dotAlpha ??= Build(SoftDot(), false);          // snow, mist
+        public static Material DotAdditiveMaterial => _dotAdd ??= Build(SoftDot(), true);     // motes, glitter
         public static Material StreakMaterial => _streakAlpha ??= Build(Streak(), false);     // rain
         public static Material FleckMaterial => _fleckAdd ??= Build(Fleck(), true);           // embers, sparks
         public static Material FleckAlphaMaterial => _fleckAlpha ??= Build(Fleck(), false);   // locusts (dark specks)
+        public static Material BillowMaterial => _billowAlpha ??= Build(Billow(), false);     // smoke, miasma, dust
+        public static Material FlameMaterial => _flameAdd ??= Build(Flame(), true);           // fire licks (color baked in)
 
         // ---------- system factory ----------
 
@@ -116,6 +189,7 @@ namespace Slate.Game
             public int MaxParticles;
             public bool FadeInOut;             // alpha ramps in then out
             public float GrowOverLife;         // end size multiplier (smoke billows)
+            public float TallAspect;           // >0: upright sprite, height = width * aspect (flame licks)
         }
 
         public static ParticleSystem Create(Transform parent, SystemSpec s)
@@ -131,11 +205,23 @@ namespace Slate.Game
             main.simulationSpace = ParticleSystemSimulationSpace.World;
             main.startLifetime = new ParticleSystem.MinMaxCurve(s.LifeMin, s.LifeMax);
             main.startSpeed = new ParticleSystem.MinMaxCurve(s.SpeedMin, s.SpeedMax);
-            main.startSize = new ParticleSystem.MinMaxCurve(s.SizeMin, s.SizeMax);
             main.startColor = new ParticleSystem.MinMaxGradient(s.ColorA, s.ColorB);
             main.gravityModifier = s.Gravity;
             main.maxParticles = s.MaxParticles > 0 ? s.MaxParticles : 2000;
-            main.startRotation = new ParticleSystem.MinMaxCurve(0, Mathf.PI * 2);
+            if (s.TallAspect > 0f)
+            {
+                // Upright sprites (flame licks): taller than wide, no spin.
+                main.startSize3D = true;
+                main.startSizeX = new ParticleSystem.MinMaxCurve(s.SizeMin, s.SizeMax);
+                main.startSizeY = new ParticleSystem.MinMaxCurve(s.SizeMin * s.TallAspect, s.SizeMax * s.TallAspect);
+                main.startSizeZ = new ParticleSystem.MinMaxCurve(s.SizeMin, s.SizeMax);
+                main.startRotation = 0f;
+            }
+            else
+            {
+                main.startSize = new ParticleSystem.MinMaxCurve(s.SizeMin, s.SizeMax);
+                main.startRotation = new ParticleSystem.MinMaxCurve(0, Mathf.PI * 2);
+            }
 
             var emission = ps.emission;
             emission.rateOverTime = 0f; // everything is emitted by WorldVfx, on purpose

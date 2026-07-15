@@ -57,11 +57,30 @@ namespace Slate.Game
             return Mathf.Lerp(Mathf.Lerp(a, b, fx), Mathf.Lerp(c, d, fx), fz);
         }
 
-        // Cheap 2-octave value noise for visual relief detail.
+        private static float CellTemp(int x, int y)
+        {
+            x = Mathf.Clamp(x, 0, _w.W - 1);
+            y = Mathf.Clamp(y, 0, _w.H - 1);
+            return _w.Temp[y * _w.W + x];
+        }
+
+        // Bilinear temperature — smooth snowlines instead of blocky cell edges.
+        public static float Temp01(float wx, float wz)
+        {
+            float gx = wx / CellSize - 0.5f;
+            float gz = wz / CellSize - 0.5f;
+            int x0 = Mathf.FloorToInt(gx), z0 = Mathf.FloorToInt(gz);
+            float fx = Mathf.Clamp01(gx - x0), fz = Mathf.Clamp01(gz - z0);
+            float a = CellTemp(x0, z0), b = CellTemp(x0 + 1, z0);
+            float c = CellTemp(x0, z0 + 1), d = CellTemp(x0 + 1, z0 + 1);
+            return Mathf.Lerp(Mathf.Lerp(a, b, fx), Mathf.Lerp(c, d, fx), fz);
+        }
+
+        // Cheap 3-octave value noise for visual relief detail.
         private static float DetailNoise(float wx, float wz)
         {
             float sum = 0f, amp = 1f, freq = 0.055f, norm = 0f;
-            for (int o = 0; o < 2; o++)
+            for (int o = 0; o < 3; o++)
             {
                 float x = wx * freq, z = wz * freq;
                 int ix = Mathf.FloorToInt(x), iz = Mathf.FloorToInt(z);

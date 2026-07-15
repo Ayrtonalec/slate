@@ -1,7 +1,10 @@
 // SLATE — wires the whole visible world together at Play. The scene only
 // contains a camera, a sun and this object; everything else (terrain, sea,
-// forests, settlements, crowds, HUD) is built from the sim at runtime.
+// forests, settlements, crowds, HUD, post-processing) is built from the sim
+// at runtime.
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using Slate.Sim;
 
 namespace Slate.Game
@@ -14,11 +17,50 @@ namespace Slate.Game
         private TerrainMeshBuilder _terrain;
         private float _roadCheckAt;
 
+        private bool _postFxDone;
+
         private void Start()
         {
             _runner = GetComponent<WorldRunner>();
             BuildAll(_runner.World);
             _runner.WorldRebuilt += BuildAll;
+        }
+
+        // Cinematic grade, built in code so no scene rebuild is ever needed:
+        // bloom makes fire/embers/motes actually glow, gentle grading warms the
+        // image, SMAA kills the jaggies ("pixelated" edges).
+        private void SetupPostFx(Camera cam)
+        {
+            if (_postFxDone || cam == null) return;
+            _postFxDone = true;
+
+            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
+            var bloom = profile.Add<Bloom>();
+            bloom.active = true;
+            bloom.intensity.Override(0.75f);
+            bloom.threshold.Override(1.0f);
+            bloom.scatter.Override(0.6f);
+            var grade = profile.Add<ColorAdjustments>();
+            grade.active = true;
+            grade.saturation.Override(8f);
+            grade.contrast.Override(8f);
+            grade.postExposure.Override(0.05f);
+            var vig = profile.Add<Vignette>();
+            vig.active = true;
+            vig.intensity.Override(0.16f);
+            vig.smoothness.Override(0.55f);
+
+            var volGO = new GameObject("PostFx");
+            volGO.transform.SetParent(transform, false);
+            var vol = volGO.AddComponent<Volume>();
+            vol.isGlobal = true;
+            vol.priority = 10f;
+            vol.profile = profile;
+
+            cam.allowHDR = true;
+            var data = cam.GetUniversalAdditionalCameraData();
+            data.renderPostProcessing = true;
+            data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
         }
 
         private void BuildAll(World w)
@@ -61,6 +103,7 @@ namespace Slate.Game
 
             // Camera: start over the first homeland, high enough to read the world.
             var cam = Camera.main;
+            SetupPostFx(cam);
             var rig = cam != null ? cam.GetComponent<CameraRig>() : null;
             if (rig != null)
             {

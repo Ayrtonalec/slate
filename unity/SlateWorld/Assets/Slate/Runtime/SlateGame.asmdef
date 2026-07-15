@@ -2,7 +2,9 @@
     "name": "SlateGame",
     "rootNamespace": "Slate.Game",
     "references": [
-        "SlateSim"
+        "SlateSim",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Core.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
