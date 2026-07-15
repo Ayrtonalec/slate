@@ -112,9 +112,12 @@ must do ALL of this to itself, no god input:
       Slate.Game.Editor.ProjectSetup.BuildAll).
 - [x] (2026-07-15) Founder onboarding notes: `unity/README.md` (open project,
       controls, where code lives, how to run tests, the rules).
-- [x] (2026-07-15) Git LFS installed + `.gitattributes` scoped to
-      `unity/SlateWorld/Assets/**` binaries (textures/models/audio). Ready for
-      asset packs.
+- [~] (2026-07-15) Git LFS installed, but **DISABLED**: GitHub refuses LFS
+      uploads to public forks, and this repo is a fork of the Slate docs repo.
+      Small binaries (generated FBX kits, ~20KB each) go in plain git for now.
+      **Founder decision needed before importing big asset packs**: either ask
+      GitHub Support to detach the fork, or migrate to a fresh repo — then
+      re-enable the commented rules in `.gitattributes`.
 - [ ] **Fog wall live-tuning session**: founder eyeballs the Endless Sea fog
       in-editor and directs (darker/thicker/lower); Claude adjusts via the
       command bridge in real time. (Founder: "komt later wel", 2026-07-15.)
