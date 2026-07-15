@@ -60,6 +60,11 @@ namespace Slate.Sim
                 case "dragonGone": return (2, "plain", $"{d.Dragon}, finding nothing left worth coveting, flies beyond the map's edge.");
                 case "road": return (1, "plain", $"A road now runs between {d.A} and {d.B}.");
                 case "migration": return (1, "plain", $"Refugees out of {d.From} settle in {d.To}.");
+                case "warMarch": return (3, "doom", $"War: {Cultures.All[d.Culture].Demonym} of {d.From} raise {d.Pop} spears and march on {d.Name}.");
+                case "conquest": return (3, "doom", $"{d.Name} falls to {Cultures.All[d.Culture].Demonym}; new banners fly from its rooftops.");
+                case "sacked": return (3, "doom", $"{d.Name} is put to the torch by {Cultures.All[d.Culture].Demonym}. The survivors scatter into the hills.");
+                case "defended": return (2, "plain", $"{d.Name} throws back {Cultures.All[d.Culture].Demonym}; the fields are red, but the walls hold.");
+                case "warOver": return (1, "plain", $"The warband out of {d.From} breaks up and drifts home; there was nothing left to fight for.");
                 default: throw new ArgumentException("unknown chronicle type: " + type);
             }
         }

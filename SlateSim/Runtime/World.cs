@@ -61,6 +61,17 @@ namespace Slate.Sim
         public string RegionName;
     }
 
+    // A warband on the march. Lives from declaration to battle (or disband).
+    public sealed class Army
+    {
+        public int Id;
+        public int Culture;
+        public int FromId, TargetId;
+        public string FromName, TargetName;
+        public double X, Y;      // current position, cell coordinates
+        public double Size;      // fighting strength, in souls
+    }
+
     public sealed class Road
     {
         public int A, B;
@@ -138,6 +149,10 @@ namespace Slate.Sim
         public List<Zone> Storms = new List<Zone>();
         public List<Zone> Blesses = new List<Zone>();
         public List<Dragon> Dragons = new List<Dragon>();
+        public List<Army> Armies = new List<Army>();
+        public Dictionary<int, int> TruceUntil = new Dictionary<int, int>(); // culture-pair key -> tick
+        public int NextArmyId = 1;
+        public Rng RngWar; // own labeled stream: adding wars must not reshuffle older systems
         public List<(int X, int Y)> DeadLairs = new List<(int, int)>();
         public List<Road> Roads = new List<Road>();
         public Dictionary<int, int> RoadDeg = new Dictionary<int, int>();
@@ -173,6 +188,7 @@ namespace Slate.Sim
             for (int i = 0; i < w.Claims.Length; i++) { w.Claims[i] = -1; w.SettleGrid[i] = -1; }
             w.Chronicle = new Chronicle();
             w.RngSim = new Rng(seed, "sim");
+            w.RngWar = new Rng(seed, "war");
             w.Title = "Seed " + seed;
 
             // Founding landings: each culture puts two hamlets ashore near its homeland.

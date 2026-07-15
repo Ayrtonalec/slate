@@ -37,7 +37,8 @@ unity/*/*.slnx
 unity/createproject.log
 unity/*.log
 unity/shots/
-unity/test-results.xml
+unity/test-results*.xml
+unity/SlateWorld-test/
 
 # The founder's scratch project from Unity Hub (superseded by SlateWorld)
 unity/My project/

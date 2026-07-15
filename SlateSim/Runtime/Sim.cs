@@ -14,6 +14,11 @@ namespace Slate.Sim
         private const int FEAR_R = 8;  // dragon terror radius
         private const int RAID_R = 10;
 
+        // Warband tuning: sagas, not white noise — a few wars per century, worldwide.
+        private const int MaxArmies = 2;
+        private const double ArmySpeed = 0.5;      // cells per month on the march
+        private const int TruceYears = 30;         // peace between the same two cultures
+
         public static void Tick(World w)
         {
             var rng = w.RngSim;
@@ -232,6 +237,9 @@ namespace Slate.Sim
                 }
             }
 
+            // --- Wars: armies on the march (aliveness contract, design doc 02).
+            MoveArmies(w);
+
             if (w.ClaimsDirtyTick != 0 && w.Tick - w.ClaimsDirtyTick > 24)
             {
                 w.RecomputeClaims();
@@ -240,6 +248,144 @@ namespace Slate.Sim
             else if (w.Dirty.Borders && w.ClaimsDirtyTick == 0)
             {
                 w.ClaimsDirtyTick = w.Tick;
+            }
+        }
+
+        private static int PairKey(int a, int b) => a < b ? a * 100 + b : b * 100 + a;
+
+        // A straight campaign route must be walkable; armies don't swim.
+        private static bool LandRouteOpen(World w, Settlement a, Settlement b)
+        {
+            int steps = (int)Math.Ceiling(Math.Sqrt((double)(b.X - a.X) * (b.X - a.X) + (double)(b.Y - a.Y) * (b.Y - a.Y)) * 2);
+            if (steps == 0) return true;
+            int wet = 0;
+            for (int k = 0; k <= steps; k++)
+            {
+                double t = (double)k / steps;
+                double x = a.X + (b.X - a.X) * t;
+                double y = a.Y + (b.Y - a.Y) * t;
+                if (!w.IsLandAt((int)Math.Floor(x + 0.5), (int)Math.Floor(y + 0.5))) wet++;
+                if (wet > 2) return false;
+            }
+            return true;
+        }
+
+        // Yearly: pressure and envy between neighboring cultures spark wars.
+        private static void DeclareWars(World w, Rng war)
+        {
+            if (w.Armies.Count >= MaxArmies) return;
+            var alive = w.AliveSettlements();
+            foreach (var s in alive)
+            {
+                if (s.Pop < 500) continue;
+                // Find the nearest worthwhile enemy within campaign range.
+                Settlement target = null;
+                double bd = 18 * 18;
+                foreach (var o in alive)
+                {
+                    if (o.Culture == s.Culture || o.Pop < 150) continue;
+                    double d2 = (double)(o.X - s.X) * (o.X - s.X) + (double)(o.Y - s.Y) * (o.Y - s.Y);
+                    if (d2 < bd) { bd = d2; target = o; }
+                }
+                if (target == null) continue;
+                int key = PairKey(s.Culture, target.Culture);
+                if (w.TruceUntil.TryGetValue(key, out int until) && w.Tick < until) continue;
+
+                // Tension: crowding at home, lean harvests, and a rich neighbor to envy.
+                double tension = 0.006;
+                if (w.LeanYears > 0) tension *= 2.0;
+                if (s.Pop > s.Cap * 0.9) tension *= 1.8;
+                if (target.Wealth > s.Wealth * 1.5 + 5) tension *= 1.6;
+                if (!war.Chance(Math.Min(0.05, tension))) continue;
+                if (!LandRouteOpen(w, s, target)) continue;
+
+                double size = Math.Max(150, s.Pop * 0.25);
+                s.Pop -= size * 0.9; // the spears leave the fields
+                w.Armies.Add(new Army
+                {
+                    Id = w.NextArmyId++,
+                    Culture = s.Culture,
+                    FromId = s.Id, TargetId = target.Id,
+                    FromName = s.Name, TargetName = target.Name,
+                    X = s.X, Y = s.Y, Size = size,
+                });
+                w.Chronicle.Add(w, "warMarch", new EvData
+                {
+                    Culture = s.Culture, From = s.Name, Name = target.Name,
+                    Pop = (int)Math.Floor(size / 50 + 0.5) * 50,
+                    X = s.X, Y = s.Y, Fx = target.X, Fy = target.Y,
+                });
+                w.Dirty.Features = true;
+                break; // at most one new war a year — sagas, not noise
+            }
+        }
+
+        // Monthly: march, and fight when the walls come into view.
+        private static void MoveArmies(World w)
+        {
+            var war = w.RngWar;
+            foreach (var a in w.Armies.ToList())
+            {
+                w.SettlementsById.TryGetValue(a.TargetId, out var target);
+                if (target == null || target.Ruined)
+                {
+                    // Nothing left to fight for; the warband drifts home.
+                    w.SettlementsById.TryGetValue(a.FromId, out var home);
+                    if (home != null && !home.Ruined) home.Pop += a.Size * 0.8;
+                    w.Chronicle.Add(w, "warOver", new EvData { From = a.FromName, X = a.X, Y = a.Y });
+                    w.Armies.Remove(a);
+                    w.Dirty.Features = true;
+                    continue;
+                }
+
+                double dx = target.X - a.X, dy = target.Y - a.Y;
+                double dist = Math.Sqrt(dx * dx + dy * dy);
+                if (dist > 1.2)
+                {
+                    a.X += dx / dist * ArmySpeed;
+                    a.Y += dy / dist * ArmySpeed;
+                    continue;
+                }
+
+                // Battle at the gates. Walls count; so does hunger on the march.
+                double defense = target.Pop * (target.Tier >= 2 ? 0.9 : 0.55);
+                double attack = a.Size * 1.35;
+                bool attackerWins = war.Next() < attack / (attack + defense);
+                w.TruceUntil[PairKey(a.Culture, target.Culture)] = w.Tick + TruceYears * 12;
+
+                if (attackerWins)
+                {
+                    if (target.Tier <= 1 || war.Chance(0.3))
+                    {
+                        // Put to the torch. (Later, a warlord's temperament decides this.)
+                        double survivors = target.Pop * 0.3;
+                        w.Chronicle.Add(w, "sacked", new EvData { Name = target.Name, Culture = a.Culture, X = target.X, Y = target.Y });
+                        w.RuinSettlement(target, "war");
+                        var dest = BestNeighbor(w, target);
+                        if (dest != null)
+                        {
+                            dest.Pop += survivors;
+                            w.Chronicle.Add(w, "migration", new EvData { From = target.Name, To = dest.Name, X = dest.X, Y = dest.Y, Fx = target.X, Fy = target.Y });
+                        }
+                        w.SettlementsById.TryGetValue(a.FromId, out var home);
+                        if (home != null && !home.Ruined) { home.Pop += a.Size * 0.6; home.Wealth += target.Wealth * 0.4; }
+                    }
+                    else
+                    {
+                        // Conquest: the town lives on under new banners.
+                        target.Culture = a.Culture;
+                        target.Pop = target.Pop * 0.72 + a.Size * 0.4;
+                        target.Wealth *= 0.6;
+                        w.Chronicle.Add(w, "conquest", new EvData { Name = target.Name, Culture = a.Culture, X = target.X, Y = target.Y });
+                    }
+                }
+                else
+                {
+                    target.Pop *= 0.90;
+                    w.Chronicle.Add(w, "defended", new EvData { Name = target.Name, Culture = a.Culture, X = target.X, Y = target.Y });
+                }
+                w.Armies.Remove(a);
+                w.Dirty.Features = true; w.Dirty.Borders = true; w.Dirty.Labels = true;
             }
         }
 
@@ -305,6 +451,9 @@ namespace Slate.Sim
                     w.Dirty.Features = true;
                 }
             }
+
+            // Wars: pressure and envy between neighboring cultures (own rng stream).
+            DeclareWars(w, w.RngWar);
 
             // Roads: nearby sizable settlements link up.
             int built = 0;

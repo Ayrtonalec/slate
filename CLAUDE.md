@@ -20,22 +20,39 @@ the original docs tool and are irrelevant — all project work lives in:
 - The founder is the idea/vision person; Claude carries most implementation. Prefer
   showing something runnable over describing it ("assets meteen" — visible results
   from day one).
-- **Sim determinism is law**: no `Math.random`/`Date.now` inside sim logic — use the
-  labeled RNG streams (`S.rng.makeRng(seed, label)`); keep the fixed tick order
-  (climate → settlements → colonization → gold → dragons → roads → claims).
-  Same seed must replay the same history (tests enforce this).
-- The sim core stays **engine-agnostic and headless-testable**. The JS prototype is
-  the executable spec for a future C# core (decision gate: end of Phase 1).
-- Production engine default: **Unity** (maximizes Claude leverage, one C# codebase);
-  UE5 is the fallback if HDRP can't hit the visual bar. See design doc 06.
+- **Sim determinism is law**: no `Math.random`/`Date.now`/wall-clock inside sim
+  logic — use the labeled RNG streams (JS: `S.rng.makeRng(seed, label)`; C#:
+  `new Rng(seed, "label")`); keep the fixed tick order (climate → settlements →
+  colonization → gold → dragons → **wars** → roads → claims; wars exist in the
+  C# core only). Same seed must replay the same history (tests enforce this).
+- The sim core stays **engine-agnostic and headless-testable**. **The C# core
+  (`SlateSim/`, a Unity local package with `noEngineReferences`) is now the
+  leading core** (2026-07-15); the JS prototype is frozen as the Phase 0
+  reference spec and cheap design playground.
+- Production engine: **Unity** (T1 decision settled 2026-07-15, see design doc 06
+  "T1 engine validation"); URP, not HDRP (HDRP is in maintenance mode). UE5 is
+  the fallback only if URP misses the visual bar at the Phase 1 gate.
 
-## Commands (run in `god-sim-prototype/`)
+## Commands — C# core + Unity game (the live codebase)
 
-- `node test/headless.js` — full sim test suite (autonomy, determinism, divergence,
-  power cascades). Must pass before committing sim changes.
-- `node build.js` — rebuild `dist/slate-atlas.html` (single file, double-clickable)
-  and `dist/slate-atlas-artifact.html` (same, without document wrapper tags).
-- `node test/shot.js` — headless screenshots into `shots/` (playwright-core;
-  Chromium path auto-detected; never run `playwright install`).
+- Sim tests (must be green before committing sim changes; needs the Unity editor
+  closed, or run against a throwaway copy of the project):
+  `Unity.exe -batchmode -projectPath unity/SlateWorld -runTests -testPlatform
+  EditMode -testResults out.xml -logFile tests.log`
+- Scene/pipeline setup (idempotent, headless):
+  `Unity.exe -batchmode -quit -projectPath unity/SlateWorld -executeMethod
+  Slate.Game.Editor.ProjectSetup.BuildAll -logFile setup.log`
+- Screenshots (needs rendering, so no `-batchmode`):
+  `Unity.exe -projectPath unity/SlateWorld -executeMethod
+  Slate.Game.Editor.ScreenshotRunner.Run -logFile shots.log` → `unity/shots/`
+- Unity path: `C:\Program Files\Unity\Hub\Editor\6000.5.4f1\Editor\Unity.exe`.
+  If the founder has the project open in the editor, batch runs can't get the
+  lock — clone Assets/Packages/ProjectSettings to a scratch project instead.
 
-After sim changes: headless tests → rebuild → screenshot → eyeball before shipping.
+## Commands — JS prototype (frozen reference, run in `god-sim-prototype/`)
+
+- `node test/headless.js` — Phase 0 sim suite (no wars; the C# core has moved on).
+- `node build.js` — rebuild the dist HTML atlas.
+- `node test/shot.js` — headless screenshots (playwright-core; never `playwright install`).
+
+After sim changes: tests → build → screenshot → eyeball before shipping.

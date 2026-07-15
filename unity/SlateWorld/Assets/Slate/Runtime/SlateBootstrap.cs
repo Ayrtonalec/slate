@@ -43,6 +43,18 @@ namespace Slate.Game
             settlementsGO.transform.SetParent(_generated.transform, false);
             settlementsGO.AddComponent<SettlementRenderer>().Init(_runner);
 
+            var farmsGO = new GameObject("Farmland");
+            farmsGO.transform.SetParent(_generated.transform, false);
+            farmsGO.AddComponent<FarmlandRenderer>().Init(_runner);
+
+            var armiesGO = new GameObject("Armies");
+            armiesGO.transform.SetParent(_generated.transform, false);
+            armiesGO.AddComponent<ArmyRenderer>().Init(_runner);
+
+            var caravansGO = new GameObject("Caravans");
+            caravansGO.transform.SetParent(_generated.transform, false);
+            caravansGO.AddComponent<CaravanRenderer>().Init(_runner);
+
             // Camera: start over the first homeland, high enough to read the world.
             var cam = Camera.main;
             var rig = cam != null ? cam.GetComponent<CameraRig>() : null;

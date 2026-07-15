@@ -62,6 +62,7 @@ namespace Slate.Game
                 if (s.Ruined) continue;
                 sig = sig * 31 + s.Id;
                 sig = sig * 31 + s.Tier;
+                sig = sig * 31 + s.Culture; // conquest re-tints the roofs
                 sig = sig * 31 + (long)(s.Pop / 130); // house count buckets
             }
             if (sig != _signature) { _signature = sig; Rebuild(w); }

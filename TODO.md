@@ -73,15 +73,27 @@ properly investigated ("uitzoeken"), not assumed. Judge against THESE criteria:
 
 Founder-locked scope (design doc 02, "aliveness contract" — 2026-07-15): the world
 must do ALL of this to itself, no god input:
-- [ ] Wars & raids between cultures/factions (casus belli from values + scarcity +
-      religious tension; statistical resolution; watchable as theater later).
+- [~] Wars & raids between cultures/factions → **wars v1 shipped in the C# core**
+      (2026-07-15, founder feedback session): tension from crowding + lean years +
+      wealth envy sparks a war; a warband marches visibly across the map (own
+      labeled rng stream "war"; tick order extended dragons → wars → roads);
+      battle at the gates weighs walls; the winner **conquers** (culture flips,
+      roofs re-tint) or **sacks** (ruin + refugees); defender can hold; 30y
+      truces; max 2 armies so wars stay sagas. Battery asserts wars break out
+      and resolve. STILL TO DO: casus belli from values/religion (needs culture
+      values + faith), Figures leading armies (a warlord's temperament decides
+      torch vs throne), multi-settlement campaigns.
 - [ ] Clans/factions/dynasties: **Figures v1** — promoted notables (warlords,
       prophets, founders, wyrmslayers) with deeds ledgers and relationships, leading
       named groups.
 - [ ] Trade v1: routes with flow volumes; caravans/ships as visible theater;
       prosperity actually travels.
-- [ ] Farming/production v1: per-settlement production vectors (grain, fish, ore,
-      timber); fields/pastures visible at closer zooms per the Theater Principle.
+- [~] Farming/production v1: **visible half shipped** (2026-07-15): deterministic
+      farmland plots around every settlement, crop rows that turn with the
+      seasons (green → Harvest gold → winter bare), farmer-villagers working the
+      fields, hunter-villagers walking the treeline, caravans on every road.
+      STILL TO DO: the sim half — per-settlement production vectors (grain,
+      fish, ore, timber) actually feeding the food/trade economy.
 - [ ] Culture drift & divergence (values vectors; separated populations fork).
 - [ ] Migration/refugee flows (already seeded in Phase 0; make it systemic).
 - [ ] Chronicle prose + importance + tone for every new event type. No blind spots.

@@ -27,12 +27,16 @@ bible).
 | Right-mouse drag | Grab the map |
 | Q / E | Rotate |
 | Space | Pause |
-| 1 / 2 / 3 | Speed I / II / III (1 / 6 / 24 years per second) |
+| 1 / 2 / 3 | Speed I / II / III (½ / 3 / 12 years per second) |
 | N | New world (new seed) |
 
-Zoom in on any town and you'll see villagers walking between the houses.
-Roof colors = culture. Walls appear when a settlement becomes a town.
-The feed top-right is the Chronicle, live.
+Zoom in on any town and you'll see villagers walking between the houses,
+farmers working the crop rows (fields turn gold at Harvest), hunters heading
+for the treeline, and carts trundling along the roads. Roof colors = culture.
+Walls appear when a settlement becomes a town. When war comes — and it will,
+with no input from you — a warband marches under its culture's banner to the
+enemy's gates: the town falls and changes color, burns, or holds. The feed
+top-right is the Chronicle, live.
 
 ## Where things live
 

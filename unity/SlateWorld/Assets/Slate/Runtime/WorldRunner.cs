@@ -13,8 +13,9 @@ namespace Slate.Game
 
         [NonSerialized] public World World;
 
-        public static readonly float[] SpeedsYearsPerSec = { 1f, 6f, 24f };
-        public int speedIndex = 1;
+        // Slow enough to watch a harvest come in; fast enough to watch an age pass.
+        public static readonly float[] SpeedsYearsPerSec = { 0.5f, 3f, 12f };
+        public int speedIndex = 0;
         public bool paused;
 
         private double _monthAccumulator;

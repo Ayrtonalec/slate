@@ -19,10 +19,13 @@ namespace Slate.Game
         private Mesh _mesh;
         private Material[] _mats;
 
+        private enum Role { Wander, Farmer, Hunter }
+
         private class Walker
         {
             public Vector3 Pos, Target;
             public float Speed, Phase;
+            public Role Job;
         }
 
         private class Crowd
@@ -30,7 +33,11 @@ namespace Slate.Game
             public List<Walker> Walkers = new List<Walker>();
             public System.Random Rnd;
             public Settlement S;
+            public List<Vector3> FarmPoints = new List<Vector3>();   // field centers to work
+            public List<Vector3> ForestPoints = new List<Vector3>(); // hunting grounds
         }
+
+        private readonly List<FarmPlot> _plotBuffer = new List<FarmPlot>();
 
         private readonly Dictionary<int, Crowd> _crowds = new Dictionary<int, Crowd>();
         private readonly List<int> _toRemove = new List<int>();
@@ -100,7 +107,7 @@ namespace Slate.Game
                     delta.y = 0;
                     if (delta.sqrMagnitude < 0.36f)
                     {
-                        wk.Target = PickTarget(crowd);
+                        wk.Target = PickTarget(crowd, wk);
                         continue;
                     }
                     Vector3 dir = delta.normalized;
@@ -128,6 +135,21 @@ namespace Slate.Game
                 S = s,
                 Rnd = new System.Random(unchecked(w.Seed * 65599 + s.Id * 2654435761u.GetHashCode())),
             };
+
+            // Where this settlement's people work: its fields and nearby woods.
+            FarmPlots.GetPlots(w, s, _plotBuffer);
+            foreach (var p in _plotBuffer) crowd.FarmPoints.Add(p.Center);
+            float cell = TerrainSampler.CellSize;
+            for (int dy = -4; dy <= 4 && crowd.ForestPoints.Count < 6; dy++)
+                for (int dx = -4; dx <= 4 && crowd.ForestPoints.Count < 6; dx++)
+                {
+                    int nx = s.X + dx, ny = s.Y + dy;
+                    if (!w.InB(nx, ny) || w.Biome[ny * w.W + nx] != B.FOREST) continue;
+                    var fp = TerrainSampler.CellToWorld(nx, ny);
+                    fp.y = TerrainSampler.GroundY(fp.x, fp.z);
+                    if (fp.y > 0.35f) crowd.ForestPoints.Add(fp);
+                }
+
             SyncCount(crowd);
             return crowd;
         }
@@ -137,21 +159,48 @@ namespace Slate.Game
             int want = 2 + Mathf.Min(30, (int)(crowd.S.Pop / 110));
             while (crowd.Walkers.Count < want)
             {
+                double roll = crowd.Rnd.NextDouble();
+                Role job = crowd.FarmPoints.Count > 0 && roll < 0.45 ? Role.Farmer
+                    : crowd.ForestPoints.Count > 0 && roll < 0.58 ? Role.Hunter
+                    : Role.Wander;
                 var wk = new Walker
                 {
-                    Pos = PickTarget(crowd),
+                    Job = job,
                     Speed = 1.4f + (float)crowd.Rnd.NextDouble() * 1.0f,
                     Phase = (float)crowd.Rnd.NextDouble() * 20f,
                 };
-                wk.Target = PickTarget(crowd);
+                wk.Pos = PickTarget(crowd, wk);
+                wk.Target = PickTarget(crowd, wk);
                 crowd.Walkers.Add(wk);
             }
             if (crowd.Walkers.Count > want)
                 crowd.Walkers.RemoveRange(want, crowd.Walkers.Count - want);
         }
 
-        private Vector3 PickTarget(Crowd crowd)
+        private Vector3 PickTarget(Crowd crowd, Walker wk)
         {
+            // Farmers walk their fields (and linger, working the rows); hunters
+            // head for the treeline; the rest drift between the houses. Everyone
+            // goes home now and then, so paths cross in the streets.
+            if (wk.Job == Role.Farmer && crowd.FarmPoints.Count > 0 && crowd.Rnd.NextDouble() < 0.75)
+            {
+                var f = crowd.FarmPoints[crowd.Rnd.Next(crowd.FarmPoints.Count)];
+                var p = f + new Vector3(
+                    (float)(crowd.Rnd.NextDouble() - 0.5) * 6f, 0,
+                    (float)(crowd.Rnd.NextDouble() - 0.5) * 4f);
+                p.y = TerrainSampler.GroundY(p.x, p.z);
+                if (p.y > 0.35f) return p;
+            }
+            if (wk.Job == Role.Hunter && crowd.ForestPoints.Count > 0 && crowd.Rnd.NextDouble() < 0.6)
+            {
+                var f = crowd.ForestPoints[crowd.Rnd.Next(crowd.ForestPoints.Count)];
+                var p = f + new Vector3(
+                    (float)(crowd.Rnd.NextDouble() - 0.5) * 5f, 0,
+                    (float)(crowd.Rnd.NextDouble() - 0.5) * 5f);
+                p.y = TerrainSampler.GroundY(p.x, p.z);
+                if (p.y > 0.35f) return p;
+            }
+
             var s = crowd.S;
             Vector3 center = TerrainSampler.CellToWorld(s.X, s.Y);
             float radius = TerrainSampler.CellSize * (0.40f + 0.34f * s.Tier)

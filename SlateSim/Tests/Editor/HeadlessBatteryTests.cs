@@ -159,6 +159,28 @@ namespace Slate.Sim.Tests
         }
 
         [Test]
+        public void Wars_BreakOutOnTheirOwn_AndResolve()
+        {
+            // The aliveness contract: wars must happen with zero god input,
+            // and must resolve (conquest, sack or a held wall) — never hang.
+            int marches = 0, outcomes = 0;
+            foreach (int seed in new[] { 1, 2, 3, 7, 42 })
+            {
+                var w = World.Create(seed);
+                Simulation.RunYears(w, 500);
+                foreach (var e in w.Chronicle.Events)
+                {
+                    if (e.Type == "warMarch") marches++;
+                    if (e.Type == "conquest" || e.Type == "sacked" || e.Type == "defended") outcomes++;
+                }
+                Assert.That(w.Armies.Count, Is.LessThanOrEqualTo(2), $"seed {seed}: armies bounded");
+            }
+            TestContext.Out.WriteLine($"battery: {marches} war marches, {outcomes} battles resolved");
+            Assert.That(marches, Is.GreaterThanOrEqualTo(3), "wars break out across the battery");
+            Assert.That(outcomes, Is.GreaterThanOrEqualTo(2), "battles actually resolve");
+        }
+
+        [Test]
         public void Chronicle_ExportsToMarkdown()
         {
             var w = World.Create(7);
