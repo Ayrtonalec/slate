@@ -39,6 +39,7 @@ unity/*.log
 unity/shots/
 unity/test-results*.xml
 unity/SlateWorld-test/
+unity/bridge/
 
 # The founder's scratch project from Unity Hub (superseded by SlateWorld)
 unity/My project/

@@ -19,6 +19,7 @@ namespace Slate.Game.Editor
     public static class ScreenshotRunner
     {
         private const string Flag = "slate.shots.active";
+        private const string BridgeFlag = "slate.shots.bridge"; // run inside the founder's editor, don't exit
         private static int _frame;
         private static int _stage;
 
@@ -35,6 +36,17 @@ namespace Slate.Game.Editor
         public static void Run()
         {
             SessionState.SetBool(Flag, true);
+            SessionState.SetBool(BridgeFlag, false);
+            EditorSceneManager.OpenScene("Assets/Scenes/World.unity");
+            EditorApplication.EnterPlaymode();
+        }
+
+        // Bridge mode: same flythrough, but inside the already-open editor —
+        // exits play mode (not the editor) and reports through the bridge.
+        public static void RunFromBridge()
+        {
+            SessionState.SetBool(Flag, true);
+            SessionState.SetBool(BridgeFlag, true);
             EditorSceneManager.OpenScene("Assets/Scenes/World.unity");
             EditorApplication.EnterPlaymode();
         }
@@ -108,11 +120,20 @@ namespace Slate.Game.Editor
                     _stage = 7; _frame = 0;
                     return;
 
-                case 7: // let the screenshots flush to disk, then leave
+                case 7: // let the screenshots flush to disk, then wrap up
                     if (_frame < 200) return;
                     SessionState.SetBool(Flag, false);
                     EditorApplication.update -= Tick;
-                    EditorApplication.Exit(0);
+                    if (SessionState.GetBool(BridgeFlag, false))
+                    {
+                        // Founder's editor: leave it running, just report back.
+                        EditorApplication.ExitPlaymode();
+                        CommandBridge.Done("shots-done");
+                    }
+                    else
+                    {
+                        EditorApplication.Exit(0);
+                    }
                     return;
             }
         }
@@ -194,7 +215,17 @@ namespace Slate.Game.Editor
         {
             w.Month = 5; // summer light again for the sea shot
 
-            // A ship in open water, making for the western fog.
+            // Find a row of guaranteed open ocean at the western edge.
+            int seaRow = w.H / 2;
+            for (int y = w.H / 4; y < w.H * 3 / 4; y++)
+            {
+                bool open = true;
+                for (int x = 0; x <= 16 && open; x++)
+                    if (w.HeightMap[y * w.W + x] > w.Sea) open = false;
+                if (open) { seaRow = y; break; }
+            }
+
+            // A ship on that open water, making for the western fog.
             Settlement port = null;
             foreach (var s in w.AliveSettlements())
                 if (s.Fish && (port == null || s.Pop > port.Pop)) port = s;
@@ -204,15 +235,12 @@ namespace Slate.Game.Editor
                 {
                     Id = w.NextShipId++, HomeId = port.Id, HomeName = port.Name,
                     Captain = "Captain " + port.Name, Culture = port.Culture,
-                    X = 14, Y = port.Y, LaunchX = port.X, LaunchY = port.Y,
-                    TargetX = 1, TargetY = port.Y, State = Ship.Outbound,
+                    X = 9, Y = seaRow, LaunchX = port.X, LaunchY = port.Y,
+                    TargetX = 1, TargetY = seaRow, State = Ship.Outbound,
                 });
-                rig.SnapTo(TerrainSampler.CellToWorld(9, port.Y), 120f, 100f);
             }
-            else
-            {
-                rig.SnapTo(TerrainSampler.CellToWorld(8, w.H / 2.0), 150f, 100f);
-            }
+            // Look WEST down the sea lane: water, the ship, the wall beyond.
+            rig.SnapTo(TerrainSampler.CellToWorld(13, seaRow), 45f, 270f);
         }
 
         private static void Center(CameraRig rig, float height)
