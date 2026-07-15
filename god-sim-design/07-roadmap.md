@@ -14,6 +14,10 @@ Rule: **every phase ends with something you can play, watch, or share.** No phas
 ## Phase 1 — Vertical slice: "The First Miracle"
 
 - One 8×8 km fantasy region, ~Bronze-to-Iron span, a few centuries.
+- **Living-world v1 (the aliveness contract, doc 02):** culture value drift, wars &
+  raids between cultures, clans/factions/dynasties via Figures, visible trade flows
+  (caravans/ships), farming/production visible at close zoom, migration. Founder
+  decision 2026-07-15: these are part of "the world lives on its own," not later flavor.
 - Powers: one from each verb family (Shape, Seed, Touch, Sign, Wrath) — five total, deep cascades > wide kit.
 - Faith v1: Awe/Devotion/Dread currencies, prayer inbox, first Interpretation Engine pass (they name you, build the first shrine, hold the first festival).
 - Figures v1: notability promotion, deeds, epithets. Chronicle browsable in-game.

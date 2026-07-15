@@ -42,6 +42,17 @@ Design rule: **the sim emits facts; interpretation is layered on top** (see doc 
 
 **Guarantee 1: the world needs no god.** The sim is fully self-driving. A zero-input run from Year 0 produces a complete history — cultures form, wars break out, dynasties rise, religions emerge (to gods mortals *invent*: sun cults, ancestor spirits — not to you; see the Interpretation corollary in doc 03). The god is a perturbation on a living system, never its engine. This isn't aspiration, it's enforced by architecture: the CI integration runs are god-less by definition, so an autonomous world is literally the thing we test every day. It also falls out as a free feature — **Observer Mode**, the pure ant-farm run, which some players (and streams) will treat as the whole game.
 
+**What "alive" includes — the aliveness contract (founder-locked, 2026-07-15).**
+"The world runs itself" means far more than settlements growing. The autonomous
+baseline must include, with zero divine input: cultures that drift apart and
+diverge; **wars and raids between cultures and factions**; **clans, factions and
+dynasties** — named groups led by Figures; **trade** — routes and prosperity flows,
+with caravans/ships as visible theater; **farming and production** — statistically
+simulated per the Theater Principle, visible as fields/pastures/fisheries at closer
+zooms; migration and refugee flows; and religions that emerge without the player.
+Implementation is phased (see roadmap), but none of this is optional flavor: a
+build doesn't count as "the game" until the world does all of this to itself.
+
 **Guarantee 2: runs diverge — by engineering, not by hope.** Emergent sims converge to sameness by default (the "every WorldBox endgame looks alike" problem; naive randomness gives different numbers, not different *stories*). Unrecognizably-different runs are a designed property:
 
 - **Geography is destiny:** map-gen variance propagates through site scoring into everything downstream — where the first river valley is settled reshapes 4,000 years.

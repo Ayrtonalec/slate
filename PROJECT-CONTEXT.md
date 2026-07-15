@@ -62,6 +62,19 @@ Black & White's being-worshipped fantasy × Manor Lords' presentation.*
    https://claude.ai/code/artifact/624d3e05-417a-44b5-a743-5a11e9fa55d0
 6. **Founder is moving to local development** on their PC (Claude Code desktop/CLI,
    cloned repo). This document is the handoff.
+7. **Founder clarification #3 (2026-07-15): the aliveness contract.** Wars, clans/
+   factions, trade, and farming are **part of the "world lives on its own"
+   guarantee**, not optional later-phase flavor. Locked into design doc 02
+   ("aliveness contract") and Phase 1 scope in doc 07. In the same breath the
+   founder greenlit **starting the real game** — the active work queue is now
+   **`TODO.md`** (repo root): engine decision validated against performance /
+   our-game fit / dual-coding / multiplayer criteria, C# sim-core port,
+   living-world v1, faith v0.1, dual-dev setup.
+8. **The founder codes too.** "Dual code van Claude en ik" — the founder wants to
+   actively co-develop, not only direct. Weigh tech and project-shape choices for
+   a newer programmer (readable C#, visual editor, great tutorials) AND for AI
+   leverage (text-serialized assets, code-generated content). Explain code when
+   walking the founder through it.
 
 ## 4. The design bible — one-line map of each doc
 
@@ -261,18 +274,13 @@ sound, 3D, multiplayer. All designed (docs 02–05) and staged (doc 07).
 
 ## 8. State of play & next steps
 
-**Now:** the founder plays Phase 0 (the feel test — Phase 0's only success
-criterion: watch 500 years, poke it; do you want to keep watching?).
-
-**Next-step candidates, in rough order of design leverage:**
-1. **Faith v0.1** — prayer volume per settlement responding to god acts; the
-   first Interpretation readout ("what they think you are"). Starts the soul.
-2. **Figures v1** — promote notables (heroes, prophets, founders) to entities
-   with deeds ledgers; retro-fit the wyrmslayers.
-3. **Wars/raids between cultures** — the world currently lacks mortal-vs-mortal
-   conflict entirely (deliberate cut).
-4. **Phase 1 slice planning** — pick the 8×8 km region scope, start the C# core
-   port, make the Unity-vs-UE5 call with real evidence.
+**Now:** the real game has been greenlit (2026-07-15). **The active work queue is
+`TODO.md` in the repo root** — engine decision (T1, validated against performance /
+our-game fit / dual-coding / multiplayer criteria), C# sim-core port (T2),
+living-world v1 per the aliveness contract (T3: wars, clans/factions, trade,
+farming, culture drift), faith v0.1 (T4), dual-dev setup (T5). Suggested order:
+T2 → T1 → T5 → T3/T4. The Phase 0 prototype stays alive as the cheap design
+playground (T6).
 
 **Standing engineering rules:** determinism is law (labeled RNG streams, fixed
 tick order, no wall-clock/Math.random in sim); headless tests must pass before

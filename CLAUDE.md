@@ -6,6 +6,8 @@ the original docs tool and are irrelevant — all project work lives in:
 
 - `PROJECT-CONTEXT.md` — **read this first**: full session history, every design and
   technical decision with rationale, prototype internals, tuned constants, next steps.
+- `TODO.md` — the active work queue (engine decision, C# core port, living-world v1,
+  faith v0.1, dual-dev setup). Pick work from here top-to-bottom unless told otherwise.
 - `god-sim-design/` — the design bible (9 docs). This is canon; don't contradict it
   without flagging the change to the founder.
 - `god-sim-prototype/` — Phase 0 "The Living Atlas": a playable, deterministic,
