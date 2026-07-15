@@ -282,6 +282,19 @@ farming, culture drift), faith v0.1 (T4), dual-dev setup (T5). Suggested order:
 T2 → T1 → T5 → T3/T4. The Phase 0 prototype stays alive as the cheap design
 playground (T6).
 
+**T1 update (2026-07-15, first local session):** the founder re-weighted the
+engine criteria (multiplayer, asset creation with Claude Code, Claude Code
+compatibility, performance, and *no revenue-percentage royalties*) and asked for
+the validation to run. Done with July-2026 sources — **Unity confirmed** as the
+decision; evidence table in design doc 06 ("T1 engine validation"). Key facts
+found: Unity moved **HDRP to maintenance mode** (URP is the visual path now, with
+realtime GI/physical sky/SSR landing through 6.5–6.7); Unity ships an **official
+MCP integration** supporting Claude Code while UE 5.8's MCP is experimental and
+still fights binary assets; UE royalty is 5% of lifetime gross > $1M (3.5% only
+with Epic-first launch) vs Unity's fixed $2,310/seat/yr above $200k revenue —
+never a percentage. The T1.2 hands-on spike (after the T2 C# port) remains the
+only thing that can reopen the decision.
+
 **Standing engineering rules:** determinism is law (labeled RNG streams, fixed
 tick order, no wall-clock/Math.random in sim); headless tests must pass before
 any commit that touches the sim; every new event type gets chronicle prose + an

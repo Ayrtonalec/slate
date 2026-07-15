@@ -31,13 +31,21 @@ properly investigated ("uitzoeken"), not assumed. Judge against THESE criteria:
    scan libraries, licensing (Unity per-seat vs UE 5% royalty >$1M).
 
 **Process (timeboxed, ~2 weeks of evenings):**
+- [x] T1.0 Criteria validation + paper decision (2026-07-15): **Unity** — wins
+      multiplayer / AI asset creation / Claude Code compatibility, sufficient on
+      performance (URP, not HDRP — Unity moved HDRP to maintenance in 2026), and
+      no royalty ever (vs UE's 5% > $1M gross, which fails the founder's
+      no-percentages criterion). Full evidence table in design doc 06,
+      "T1 engine validation".
 - [ ] T1.1 Port the sim core first (T2) so the spike tests something real.
 - [ ] T1.2 Unity spike: load SlateSim, render terrain + 300 settlement markers +
       1,000 crowd agents (DOTS), camera with two zoom bands, fast-forward 500 years
       in-editor. Measure FPS, build size, iteration feel, founder comfort.
+      Target URP (HDRP is in maintenance mode as of Unity's 2026 render strategy).
 - [ ] T1.3 Only if Unity disappoints (visual bar or perf): mirror the spike in UE5.
-- [ ] T1.4 Write the decision + evidence into design doc 06. After that it is
-      SETTLED — no re-litigating without new evidence.
+- [x] T1.4 Write the decision + evidence into design doc 06 → done 2026-07-15
+      ("T1 engine validation" section). SETTLED on paper; the T1.2 spike is the
+      only thing that can reopen it.
 
 ## T2 — Port the sim core JS → C# (engine-agnostic, needed regardless of T1)
 
