@@ -14,15 +14,23 @@ namespace Slate.Game
         private readonly List<Matrix4x4> _canopies = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _canopiesDry = new List<Matrix4x4>();
         private readonly List<Matrix4x4> _trunks = new List<Matrix4x4>();
+        private World _w;
+        private int _builtBurnVersion = -1;
 
         public void Build(World w)
         {
+            _w = w;
             _canopy = ProceduralMeshes.TreeCanopy();
             _trunk = ProceduralMeshes.Trunk();
             _canopyMat = SettlementRenderer.MakeLit(Palette.Canopy);
             _canopyDryMat = SettlementRenderer.MakeLit(Palette.CanopyDry);
             _trunkMat = SettlementRenderer.MakeLit(Palette.TrunkBrown);
+            Rebuild(w);
+        }
 
+        private void Rebuild(World w)
+        {
+            _builtBurnVersion = w.BurnedVersion;
             _canopies.Clear(); _canopiesDry.Clear(); _trunks.Clear();
             uint tseed = SlateRng.HashStr(w.Seed + "/trees");
 
@@ -32,6 +40,7 @@ namespace Slate.Game
                 {
                     int i = cy * w.W + cx;
                     if (w.Biome[i] != B.FOREST && w.Biome[i] != B.MARSH) continue;
+                    if (w.Burned[i] != 0) continue; // fire took these; regrowth brings them back
                     bool marsh = w.Biome[i] == B.MARSH;
                     int count = marsh ? 1 : 3 + (int)(SlateRng.Hash2(cx, cy, tseed) * 3);
 
@@ -58,8 +67,16 @@ namespace Slate.Game
             }
         }
 
+        private float _nextRebuildAllowed;
+
         private void Update()
         {
+            // Fire (and regrowth) changes the forest; rebuild at most once a second.
+            if (_w != null && _w.BurnedVersion != _builtBurnVersion && Time.time > _nextRebuildAllowed)
+            {
+                _nextRebuildAllowed = Time.time + 1f;
+                Rebuild(_w);
+            }
             SettlementRenderer.DrawGroup(_trunk, _trunkMat, _trunks);
             SettlementRenderer.DrawGroup(_canopy, _canopyMat, _canopies);
             SettlementRenderer.DrawGroup(_canopy, _canopyDryMat, _canopiesDry);

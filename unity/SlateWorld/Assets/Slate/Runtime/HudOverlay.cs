@@ -100,6 +100,37 @@ namespace Slate.Game
 
             // --- Settlement labels, zoom-gated like the atlas.
             DrawLabels(w);
+
+            // --- Scar labels: the land's memory, whispered only up close.
+            DrawScarLabels(w);
+        }
+
+        private void DrawScarLabels(World w)
+        {
+            float h = _rig != null ? _rig.Height : 500f;
+            if (h > 230f) return;
+            int drawn = 0;
+            for (int i = w.Scars.Count - 1; i >= 0 && drawn < 14; i--)
+            {
+                var scar = w.Scars[i];
+                if (scar.Name == null) continue;
+                Vector3 world = TerrainSampler.CellToWorld(scar.X, scar.Y);
+                world.y = TerrainSampler.GroundY(world.x, world.z) + 3f;
+                Vector3 sp = _cam.WorldToScreenPoint(world);
+                if (sp.z < 0) continue;
+                float sx = sp.x, sy = Screen.height - sp.y;
+                if (sx < -50 || sx > Screen.width + 50 || sy < 0 || sy > Screen.height) continue;
+
+                _label.fontSize = 10;
+                _label.fontStyle = FontStyle.Italic;
+                var rect = new Rect(sx - 110, sy - 14, 220, 16);
+                _label.normal.textColor = new Color(0, 0, 0, 0.6f);
+                GUI.Label(new Rect(rect.x + 1, rect.y + 1, rect.width, rect.height), scar.Name, _label);
+                _label.normal.textColor = new Color(0.82f, 0.80f, 0.72f, 0.85f);
+                GUI.Label(rect, scar.Name, _label);
+                _label.fontStyle = FontStyle.Bold;
+                drawn++;
+            }
         }
 
         private void DrawLabels(World w)

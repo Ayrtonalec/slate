@@ -116,6 +116,32 @@ must do ALL of this to itself, no god input:
       BEFORE the first asset pack import.
 - [ ] Commit conventions + branch flow simple enough for two devs (founder + Claude).
 
+## T7 — Idea larder batches (founder greenlit ALL on 2026-07-15; order A → C → B → D)
+
+- [x] **Batch A — "The world bites back"** (SHIPPED 2026-07-15): plague along the
+      trade routes (road-graph contagion, density mortality, survivor decade,
+      wars pause, armies carry it home from sacked sick towns), wildfire (dry
+      years, spreading front, burns palisades, 40y regrowth scars), flood +
+      12y silt fertility, earthquake (mountain faults, cracks stone walls →
+      wars of opportunity), locust clouds (visible swarm eating farm color),
+      visible winter (snow on cold latitudes, roads close in Deepwinter,
+      villagers stay by the hearth), named battlefield scars with cairns +
+      close-zoom labels. All on own rng streams ("plague", "disaster"); battery
+      is 9 tests, all green (battery observed: 10 plagues, ~250 disasters, 177
+      scars across 5 seeds x 500y; hierarchy breathes with the plague cycle —
+      seed 7: 4.1x -> 3.0x -> 3.7x across years 300/400/500, as real history did).
+- [ ] **Batch C — "The face of things"**: districts & specialization (docks,
+      smithies, market squares, granaries, poor sprawl outside walls), house
+      visual tiers (hovel → timber → stone), heraldry generator (culture/town
+      banners), beacon chains on war, deforestation rings around big towns.
+- [ ] **Batch B — "People, not tokens"**: Figures v1 (T3 keystone: rulers with
+      temperament — the founder's chaotic warlord decides torch vs throne),
+      dynasties & feuds, named artifacts that travel (loot → shrine → ruin),
+      bandit camps & sea-raiders with hero-clearing arcs.
+- [ ] **Batch D — "The soul"**: faith v0.1 (T4), omens (eclipses/comets read
+      per culture), shrines → temples visible, interpretation voices after
+      god acts.
+
 ## T6 — Keep the prototype as the cheap design playground
 
 - [ ] New mechanic ideas get a fast JS prototype pass in `god-sim-prototype/` before

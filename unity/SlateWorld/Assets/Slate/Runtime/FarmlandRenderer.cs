@@ -12,10 +12,13 @@ namespace Slate.Game
     {
         private WorldRunner _runner;
         private Mesh _row;
-        private Material _cropMat;
+        private Material _cropMat, _eatenMat;
         private readonly List<Matrix4x4> _rows = new List<Matrix4x4>();
+        private readonly List<Matrix4x4> _rowsHealthy = new List<Matrix4x4>();
+        private readonly List<Matrix4x4> _rowsEaten = new List<Matrix4x4>();
         private readonly List<FarmPlot> _plotBuffer = new List<FarmPlot>();
         private long _signature = -1;
+        private static readonly Color EatenStubble = new Color(0.45f, 0.38f, 0.25f);
 
         // Month -> crop color: sow, grow, ripen, harvest stubble, winter bare.
         private static readonly Color[] MonthColors =
@@ -39,6 +42,7 @@ namespace Slate.Game
             _runner = runner;
             _row = ProceduralMeshes.Box();
             _cropMat = SettlementRenderer.MakeLit(MonthColors[0]);
+            _eatenMat = SettlementRenderer.MakeLit(EatenStubble);
         }
 
         private void Update()
@@ -56,7 +60,30 @@ namespace Slate.Game
             if (sig != _signature) { _signature = sig; Rebuild(w); }
 
             _cropMat.SetColor("_BaseColor", MonthColors[w.Month]);
-            SettlementRenderer.DrawGroup(_row, _cropMat, _rows);
+
+            if (w.Locusts.Count == 0)
+            {
+                SettlementRenderer.DrawGroup(_row, _cropMat, _rows);
+                return;
+            }
+
+            // Locusts eat the color out of the year — but only where the swarm is.
+            _rowsHealthy.Clear(); _rowsEaten.Clear();
+            float cell = TerrainSampler.CellSize;
+            foreach (var m in _rows)
+            {
+                Vector3 p = m.GetColumn(3);
+                bool eaten = false;
+                foreach (var c in w.Locusts)
+                {
+                    float dx = p.x - (float)((c.X + 0.5) * cell);
+                    float dz = p.z - (float)((c.Y + 0.5) * cell);
+                    if (dx * dx + dz * dz <= 3.5f * cell * 3.5f * cell) { eaten = true; break; }
+                }
+                (eaten ? _rowsEaten : _rowsHealthy).Add(m);
+            }
+            SettlementRenderer.DrawGroup(_row, _cropMat, _rowsHealthy);
+            SettlementRenderer.DrawGroup(_row, _eatenMat, _rowsEaten);
         }
 
         private void Rebuild(World w)

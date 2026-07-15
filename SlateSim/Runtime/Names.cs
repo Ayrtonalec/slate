@@ -140,5 +140,15 @@ namespace Slate.Sim
         }
 
         public string Dragon() => _rng.Pick(DragonNames);
+
+        private static readonly string[] BattlefieldForms =
+        {
+            "the Field of {0}", "{0} Field", "the Red Meadow of {0}",
+            "the Ford of {0}", "the Bonefield of {0}", "the Weeping of {0}",
+        };
+
+        // Battlefields are named for the place they nearly destroyed.
+        public string Battlefield(string near)
+            => string.Format(_rng.Pick(BattlefieldForms), near);
     }
 }

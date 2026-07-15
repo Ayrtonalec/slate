@@ -29,10 +29,15 @@ namespace Slate.Game
             _carts.Clear(); _canvases.Clear();
             float cell = TerrainSampler.CellSize;
 
+            bool deepWinter = w.Month == 9 || w.Month == 10; // Deepwinter, Icewane
+
             foreach (var road in w.Roads)
             {
                 if (!w.SettlementsById.TryGetValue(road.A, out var a) || a == null || a.Ruined) continue;
                 if (!w.SettlementsById.TryGetValue(road.B, out var b) || b == null || b.Ruined) continue;
+                // Nobody trades with a sick town, and northern roads close in deep winter.
+                if (a.PlagueState == 1 || b.PlagueState == 1) continue;
+                if (deepWinter && w.Temp[a.Y * w.W + a.X] < 0.5f) continue;
                 int n = road.Pts.Count;
                 if (n < 4) continue;
 

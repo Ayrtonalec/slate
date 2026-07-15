@@ -157,6 +157,13 @@ namespace Slate.Game
         private void SyncCount(Crowd crowd)
         {
             int want = 2 + Mathf.Min(30, (int)(crowd.S.Pop / 110));
+            var w = _runner?.World;
+            if (w != null)
+            {
+                // Winter keeps people by the hearth; the pest keeps them behind doors.
+                if (w.Month == 9 || w.Month == 10) want = Mathf.Max(1, want / 2);
+                if (crowd.S.PlagueState == 1) want = Mathf.Max(1, want / 3);
+            }
             while (crowd.Walkers.Count < want)
             {
                 double roll = crowd.Rnd.NextDouble();

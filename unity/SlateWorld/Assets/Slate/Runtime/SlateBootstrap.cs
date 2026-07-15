@@ -55,6 +55,10 @@ namespace Slate.Game
             caravansGO.transform.SetParent(_generated.transform, false);
             caravansGO.AddComponent<CaravanRenderer>().Init(_runner);
 
+            var scarsGO = new GameObject("Scars");
+            scarsGO.transform.SetParent(_generated.transform, false);
+            scarsGO.AddComponent<ScarRenderer>().Init(_runner);
+
             // Camera: start over the first homeland, high enough to read the world.
             var cam = Camera.main;
             var rig = cam != null ? cam.GetComponent<CameraRig>() : null;
@@ -81,11 +85,13 @@ namespace Slate.Game
 
         private void Update()
         {
-            // New roads appear as painted dirt; check once a second.
+            // Roads, burn scars and seasonal snow paint themselves onto the
+            // terrain as history happens; check twice a second (repaint itself
+            // is further throttled and change-gated).
             if (Time.time > _roadCheckAt && _terrain != null)
             {
-                _roadCheckAt = Time.time + 1f;
-                _terrain.RepaintRoads();
+                _roadCheckAt = Time.time + 0.5f;
+                _terrain.RepaintOverlays();
             }
         }
     }

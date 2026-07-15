@@ -67,6 +67,15 @@ namespace Slate.Sim
                 case "warOver": return (1, "plain", $"The warband out of {d.From} breaks up and drifts home; there was nothing left to fight for.");
                 case "palisade": return (1, "plain", $"{d.Name} rings itself with a timber palisade; the times demand it.");
                 case "stonewalls": return (2, "plain", $"{d.Name} raises walls of dressed stone. Masons eat well for a decade.");
+                case "plagueStart": return (3, "doom", $"The pest comes to {d.Name}; by market-day it is in every street.");
+                case "plagueTown": return (2, "doom", $"The pest reaches {d.Name}; the bells toll until the ringers sicken.");
+                case "plagueEnd": return (3, "plain", $"After {d.Pop} years the pestilence burns out. The dead are beyond counting; the living inherit their fields.");
+                case "wildfire": return (3, "doom", $"Fire takes {d.Region}; for a season the sun sets brown.");
+                case "burnedTown": return (2, "doom", $"{d.Name} burns to the ground as the fire passes.");
+                case "flood": return (2, "doom", $"The river rises at {d.Name}; boats row down the high street. The silt will feed a generation.");
+                case "earthquake": return (3, "doom", $"The earth heaves under {d.Region}. Bells ring with no hands on the ropes.");
+                case "wallsFell": return (2, "doom", $"The walls of {d.Name} split and slump. Masons will eat well; so will wolves.");
+                case "locusts": return (2, "doom", $"A darkness of wings crosses {d.Region}, eating the year down to stubble.");
                 default: throw new ArgumentException("unknown chronicle type: " + type);
             }
         }

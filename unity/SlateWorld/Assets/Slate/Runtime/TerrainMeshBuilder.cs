@@ -78,7 +78,10 @@ namespace Slate.Game
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
 
             _paintedRoads = -1;
-            RepaintRoads();
+            _paintedBurnVersion = -1;
+            _paintedSnowBucket = -1;
+            _nextRepaintAllowed = 0f;
+            RepaintOverlays();
         }
 
         private (int, int) ClampCell(float wx, float wz)
@@ -132,15 +135,46 @@ namespace Slate.Game
             return c;
         }
 
-        // Paint road dirt onto the vertex colors whenever new roads appear.
-        public void RepaintRoads()
+        private int _paintedBurnVersion = -1;
+        private int _paintedSnowBucket = -1;
+        private float _nextRepaintAllowed;
+
+        private static readonly Color BurningGlow = new Color(0.75f, 0.30f, 0.10f);
+        private static readonly Color CharBlack = new Color(0.16f, 0.14f, 0.12f);
+
+        // Season -> snow strength (Frostgate .. Icewane whiten the cold latitudes).
+        private static float SnowStrength(int month)
+        {
+            switch (month)
+            {
+                case 8: return 0.35f;  // Frostgate
+                case 9: return 1.0f;   // Deepwinter
+                case 10: return 0.8f;  // Icewane
+                case 11: return 0.25f; // Stirring
+                default: return 0f;
+            }
+        }
+
+        // Repaint roads, burn scars and seasonal snow onto the vertex colors.
+        // Throttled: this touches ~93k vertices, so it runs only when something
+        // actually changed and never more than twice a second.
+        public void RepaintOverlays()
         {
             if (_w == null || _mesh == null) return;
-            if (_w.Roads.Count == _paintedRoads) return;
+            int snowBucket = Mathf.RoundToInt(SnowStrength(_w.Month) * 4);
+            bool changed = _w.Roads.Count != _paintedRoads
+                || _w.BurnedVersion != _paintedBurnVersion
+                || snowBucket != _paintedSnowBucket;
+            if (!changed || Time.time < _nextRepaintAllowed) return;
+            _nextRepaintAllowed = Time.time + 0.5f;
             _paintedRoads = _w.Roads.Count;
+            _paintedBurnVersion = _w.BurnedVersion;
+            _paintedSnowBucket = snowBucket;
 
             var cols = (Color[])_baseColors.Clone();
             float step = TerrainSampler.CellSize / VertsPerCell;
+
+            // Roads: painted dirt.
             foreach (var road in _w.Roads)
             {
                 foreach (var (px, py) in road.Pts)
@@ -160,7 +194,53 @@ namespace Slate.Game
                         }
                 }
             }
+
+            // Fire: burning cells glow, burned cells are charcoal scars that
+            // fade as the forest regrows (the land remembers).
+            if (_w.BurnedVersion > 0)
+            {
+                for (int cz = 0; cz < _w.H; cz++)
+                    for (int cx = 0; cx < _w.W; cx++)
+                    {
+                        byte b = _w.Burned[cz * _w.W + cx];
+                        if (b == 0) continue;
+                        Color target = b == 1 ? BurningGlow : CharBlack;
+                        float wgt = b == 1 ? 0.85f : 0.7f;
+                        PaintCell(cols, cx, cz, target, wgt);
+                    }
+            }
+
+            // Winter: snow settles on the cold latitudes, deepest in Deepwinter.
+            float snow = SnowStrength(_w.Month);
+            if (snow > 0.01f)
+            {
+                for (int vz = 0; vz < _vh; vz++)
+                    for (int vx = 0; vx < _vw; vx++)
+                    {
+                        int i = vz * _vw + vx;
+                        if (_vertices[i].y <= 0.2f) continue;
+                        int cx = Mathf.Clamp(vx / VertsPerCell, 0, _w.W - 1);
+                        int cz = Mathf.Clamp(vz / VertsPerCell, 0, _w.H - 1);
+                        float cold = Mathf.Clamp01((0.52f - _w.Temp[cz * _w.W + cx]) * 3.2f);
+                        float wgt = cold * snow;
+                        if (wgt > 0.02f) cols[i] = Color.Lerp(cols[i], Palette.SnowCap, wgt * 0.9f);
+                    }
+            }
+
             _mesh.colors = cols;
+        }
+
+        private void PaintCell(Color[] cols, int cx, int cz, Color target, float wgt)
+        {
+            int v0x = cx * VertsPerCell, v0z = cz * VertsPerCell;
+            for (int dz = 0; dz <= VertsPerCell; dz++)
+                for (int dx = 0; dx <= VertsPerCell; dx++)
+                {
+                    int nx = v0x + dx, nz = v0z + dz;
+                    if (nx >= _vw || nz >= _vh) continue;
+                    int i = nz * _vw + nx;
+                    cols[i] = Color.Lerp(cols[i], target, wgt);
+                }
         }
     }
 }

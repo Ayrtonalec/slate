@@ -35,6 +35,8 @@ namespace Slate.Sim
         public double SoilLuck = 1;  // founding-time land quality; no two valleys are equal
         public int Walls;            // 0 open, 1 palisade, 2 stone — built, paid for, never free
         public int Hinterland;       // satellite settlements feeding this market (recounted yearly)
+        public int PlagueState;      // 0 untouched, 1 sick, 2 survived (reset when the outbreak ends)
+        public int PlagueSickUntil;  // tick the sickness burns out here
     }
 
     public sealed class Ruin
@@ -52,6 +54,24 @@ namespace Slate.Sim
         public int X, Y;
         public double R;
         public int Start;
+        public int Until; // 0 = permanent; otherwise expires at this tick
+    }
+
+    // A place the map remembers: a battlefield cairn, broken ground, a burning.
+    public sealed class Scar
+    {
+        public int X, Y;
+        public string Kind; // battle | quake
+        public string Name;
+        public int Year;
+    }
+
+    // A feeding swarm crossing the farmland.
+    public sealed class LocustCloud
+    {
+        public double X, Y;
+        public double Dx, Dy;
+        public int Until;
     }
 
     public sealed class Dragon
@@ -156,6 +176,19 @@ namespace Slate.Sim
         public Dictionary<int, int> TruceUntil = new Dictionary<int, int>(); // culture-pair key -> tick
         public int NextArmyId = 1;
         public Rng RngWar; // own labeled stream: adding wars must not reshuffle older systems
+
+        // --- Disasters & plague (each on its own labeled stream, same reason).
+        public Rng RngPlague, RngDisaster;
+        public bool PlagueActive;
+        public int PlagueCooldownUntil;
+        public int PlagueStartYear;
+        public byte[] Burned;          // per cell: 0 unburned, 1 burning, 2 burned scar
+        public int[] BurnCellTick;     // when the cell ignited / burned out (for spread + regrowth)
+        public List<int> BurningCells = new List<int>();
+        public int BurnedVersion;      // bumped on any fire-state change; renderers watch this
+        public List<Zone> SiltZones = new List<Zone>();   // flood aftermath: the river feeds the fields
+        public List<LocustCloud> Locusts = new List<LocustCloud>();
+        public List<Scar> Scars = new List<Scar>();
         public List<(int X, int Y)> DeadLairs = new List<(int, int)>();
         public List<Road> Roads = new List<Road>();
         public Dictionary<int, int> RoadDeg = new Dictionary<int, int>();
@@ -192,6 +225,10 @@ namespace Slate.Sim
             w.Chronicle = new Chronicle();
             w.RngSim = new Rng(seed, "sim");
             w.RngWar = new Rng(seed, "war");
+            w.RngPlague = new Rng(seed, "plague");
+            w.RngDisaster = new Rng(seed, "disaster");
+            w.Burned = new byte[w.W * w.H];
+            w.BurnCellTick = new int[w.W * w.H];
             w.Title = "Seed " + seed;
 
             // Founding landings: each culture puts two hamlets ashore near its homeland.
@@ -247,6 +284,9 @@ namespace Slate.Sim
                     double f = FertBase[i];
                     if (BlessAt(x, y) != null) f *= 1.7;
                     if (StormAt(x, y) != null) f *= 0.12;
+                    if (Burned[i] == 1) f *= 0.2;        // ash and smoke
+                    else if (Burned[i] == 2) f *= 0.55;  // scarred land, slowly healing
+                    if (ZoneAt(SiltZones, x, y) != null) f *= 1.3; // flood silt feeds a generation
                     Fert[i] = (float)f;
                 }
             FertDirty = true;

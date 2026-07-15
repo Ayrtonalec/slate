@@ -245,6 +245,9 @@ namespace Slate.Sim
             // --- Wars: armies on the march (aliveness contract, design doc 02).
             MoveArmies(w);
 
+            // --- Disasters & plague: nature is the other author of history.
+            Disasters.Monthly(w);
+
             if (w.ClaimsDirtyTick != 0 && w.Tick - w.ClaimsDirtyTick > 24)
             {
                 w.RecomputeClaims();
@@ -278,6 +281,7 @@ namespace Slate.Sim
         // Yearly: pressure and envy between neighboring cultures spark wars.
         private static void DeclareWars(World w, Rng war)
         {
+            if (w.PlagueActive) return; // the great dying suspends the wars of the living
             if (w.Armies.Count >= MaxArmies) return;
             var alive = w.AliveSettlements();
             foreach (var s in alive)
@@ -359,6 +363,13 @@ namespace Slate.Sim
                 bool attackerWins = war.Next() < attack / (attack + defense);
                 w.TruceUntil[PairKey(a.Culture, target.Culture)] = w.Tick + TruceYears * 12;
 
+                // The land remembers where they fought.
+                w.Scars.Add(new Scar
+                {
+                    X = (int)Math.Floor(a.X + 0.5), Y = (int)Math.Floor(a.Y + 0.5),
+                    Kind = "battle", Name = w.Namer.Battlefield(target.Name), Year = w.Year,
+                });
+
                 if (attackerWins)
                 {
                     if (target.Tier <= 1 || war.Chance(0.3))
@@ -375,6 +386,8 @@ namespace Slate.Sim
                         }
                         w.SettlementsById.TryGetValue(a.FromId, out var home);
                         if (home != null && !home.Ruined) { home.Pop += a.Size * 0.6; home.Wealth += target.Wealth * 0.4; }
+                        // Loot is not all an army carries home from a sick city.
+                        if (target.PlagueState == 1) Disasters.InfectFromWar(w, home);
                     }
                     else
                     {
@@ -520,6 +533,9 @@ namespace Slate.Sim
 
             // Wars: pressure and envy between neighboring cultures (own rng stream).
             DeclareWars(w, w.RngWar);
+
+            // Disasters: yearly triggers (plague outbreaks, fire, flood, quake, locusts).
+            Disasters.Yearly(w);
 
             // Roads: nearby sizable settlements link up.
             int built = 0;
