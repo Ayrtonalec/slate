@@ -27,6 +27,20 @@ namespace Slate.Game
         private readonly List<(Vector3 pos, int culture)> _banners = new List<(Vector3, int)>();
         private long _signature = -1;
 
+        private static readonly string[] CultureFolder = { "aldish", "vasker", "serai", "tessian" };
+        private Material _trimMat;
+
+        // Blender-built model if present (tools/blender/gen_houses.py exports
+        // into Resources/Models); the in-code ArchitectureKit is the fallback,
+        // so the project always runs even without generated assets.
+        private static Mesh LoadModel(string path)
+        {
+            var go = Resources.Load<GameObject>(path);
+            if (go == null) return null;
+            var mf = go.GetComponentInChildren<MeshFilter>();
+            return mf != null ? mf.sharedMesh : null;
+        }
+
         public void Init(WorldRunner runner)
         {
             _runner = runner;
@@ -38,9 +52,15 @@ namespace Slate.Game
             _wallsMats = new Material[4];
             _accentMats = new Material[4];
             _flagMats = new Material[4];
+            _trimMat = MakeLit(new Color(0.20f, 0.16f, 0.12f)); // dark timber & shadowed openings
             for (int c = 0; c < 4; c++)
             {
                 _houses[c] = ArchitectureKit.Houses(c);
+                for (int vIdx = 0; vIdx < 3; vIdx++)
+                {
+                    var m = LoadModel($"Models/houses/{CultureFolder[c]}_v{vIdx}");
+                    if (m != null) _houses[c][vIdx] = m;
+                }
                 _halls[c] = ArchitectureKit.Hall(c);
                 _keeps[c] = ArchitectureKit.Keep(c);
                 _wallsMats[c] = MakeLit(ArchitectureKit.WallsColor(c));
@@ -251,6 +271,8 @@ namespace Slate.Game
                 {
                     DrawGroupSub(_houses[c][vIdx], 0, _wallsMats[c], _houseGroups[c][vIdx]);
                     DrawGroupSub(_houses[c][vIdx], 1, _accentMats[c], _houseGroups[c][vIdx]);
+                    if (_houses[c][vIdx].subMeshCount > 2)
+                        DrawGroupSub(_houses[c][vIdx], 2, _trimMat, _houseGroups[c][vIdx]);
                 }
                 DrawGroupSub(_halls[c], 0, _wallsMats[c], _hallGroups[c]);
                 DrawGroupSub(_halls[c], 1, _accentMats[c], _hallGroups[c]);
