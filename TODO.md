@@ -120,11 +120,16 @@ must do ALL of this to itself, no god input:
       command bridge in real time. (Founder: "komt later wel", 2026-07-15.)
 - [ ] **Asset strategy = hybrid** (decided 2026-07-15): Claude builds
       culture-parameterized procedural architecture + vegetation himself
-      (Architecture Kit 2.0 — the "different houses/castles/desert/tree
-      variety" wish); the Asset Store/Fab session (founder logs in, Claude
-      wires) covers what code can't: characters + animations, hero-detail
-      trees, texture upgrades. Store shortlist to vet together in
-      `unity/README.md`.
+      (Architecture Kit 2.0 SHIPPED — per-culture houses/keeps/domes, climate
+      vegetation, banners, hearth smoke); the Asset Store/Fab session (founder
+      logs in, Claude wires) covers characters + animations. Store shortlist
+      in `unity/README.md`.
+- [ ] **Blender pipeline** (founder offered to install, 2026-07-15): plain
+      blender.org LTS install, NO MCP needed — Claude drives it headless
+      (`blender --background --python`), scripts live in `tools/blender/`,
+      FBX exports land in the Unity project via LFS. First targets: houses v3
+      (window/door insets, timber frames, bevels), branching trees, a real
+      curved ship hull for the expeditions, rocks/props. Waiting on install.
 - [ ] Commit conventions + branch flow simple enough for two devs (founder + Claude).
 
 ## T7 — Idea larder batches (founder greenlit ALL on 2026-07-15; order A → C → B → D)
